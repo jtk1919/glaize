@@ -99,9 +99,10 @@ model.load_weights(NAILS_MODEL_PATH, by_name=True)
 
 class_names = ['BG', 'nail', 'card']
 
-
+c = 0
 files = glob.glob( IMAGES_DIR + "*" )
 for f in files:
+    c += 1
     fn = get_fname_from_path(f)
     #
     image = cv2.imread(f)
@@ -113,6 +114,7 @@ for f in files:
     r = results[0]
     #
     n_regions = len(r['rois'][:, 0])
+    if n_regions != 5 : continue
     #
     cc_i = 0
     max_area = 0
@@ -124,61 +126,45 @@ for f in files:
         if area > max_area:
             max_area = area
             cc_i = i
-    noise_regions = [cc_i]
-    #
-    ## noise removal
-    #if n_regions > 5 :
-    #    area_med = np.median(areas)
-    #    for i in range(n_regions):
-    #        if  area[i] < 0.2 * area_med :
-    #            noise_regions.append[i]
-    #
-    rc = cv2.imwrite( TEST_DIR + fn + "_cc.png",  masked_image(img1, r['masks'][:,:,cc_i] ))
-    im2d[r['masks'][:,:,cc_i]] = 255
-    rc = cv2.imwrite( TEST_DIR + fn + "_cc_mask.png",  im2d)
     #
     msk = np.zeros( img.shape[:2])
     for i in range(n_regions):
-        if i not in noise_regions:
+        if i != cc_i:
             msk[r['masks'][:,:,i]] = 255
-            img1 =  masked_image(img1, r['masks'][:,:,i] )
+            img1 = masked_image(img1, r['masks'][:,:,i] )
     #
+    orientation, msk = ip.upright( msk )
     rc = cv2.imwrite( TEST_DIR + fn + "_nails.png",  img1)
     rc = cv2.imwrite( TEST_DIR + fn + "_nails_mask.png", msk)
+    print( "orientation: ", orientation)
+    #
+    if orientation == 0:
+        if (n_regions == 2):
+            region1_H_begin, region1_W_begin, region1_H_end, region1_W_end = r['rois'][0]
+            region2_H_begin, region2_W_begin, region2_H_end, region2_W_end = r['rois'][1]
+            idx = 0
+            if cc_i == i: idx += 1
+            clipped_nail = ip.clip_finger_mask(idx, r, image)
+            rc = cv2.imwrite(TEST_DIR + fn + "_l4.png", clipped_nail)
+        elif (n_regions == 5):
+            widths = []
+            for i in [0, 1, 2, 3, 4]:
+                if i != cc_i:
+                    y1, x1, y2, x2 = r['rois'][i]
+                    widths.append( (i, x1) )
+            widths.sort( key = lambda x:x[1] )
+            #print( "CC index : ", cc_i)
+            for i in [0, 1, 2, 3] :
+                idx = widths[i][0]
+                clipped_nail = ip.clip_finger_mask( idx, r, image)
+                rc = cv2.imwrite(TEST_DIR + fn + "_l{}.png".format(i), clipped_nail)
+        else:
+            raise Exception("Wrong number of regions ({}) detected!".format(len(r['rois'][:, 0])))
 
-##----------------------------------------------------------
-## Hand orientation
-msk1 = ip.upright( msk )
-
-
-
-
-##----------------------------------------------------------
-for i in range(n_regions):
-    if i != cc_i:
-        msk1 = np.zeros(img.shape[:2], dtype = "uint8")
-        msk1[r['masks'][:, :, i]] = 1
-        nail_clipped = ip.clip(msk1)
-        contours, _ = cv2.findContours(nail_clipped, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-        ln = len(contours)
-        if ln < 1:
-            continue
-        nail = contours[0]
-        max_i = 0
-        if ln > 1:
-            max_area = 0
-            for j in range( ln ):
-                area = cv2.contourArea( contours[j] )
-                if area > max_area:
-                    max_area = area
-                    max_i = j
-        nail = contours[max_i]
-        #
-        bgr_nail = cv2.cvtColor( nail_clipped,cv2.COLOR_GRAY2BGR)
-        angl = get_orientation( nail, bgr_nail)
-        rotated = imutils.rotate_bound(bgr_nail, 90 - angl * 180 / math.pi)
-        cv2.imwrite(TEST_DIR + fn + "_nail{}.png".format(i), bgr_nail)
-        cv2.imwrite(TEST_DIR + fn + "_rotated{}.png".format(i), rotated)
-        cv2.imshow("nail{}".format(i), bgr_nail)
-        cv2.imshow("rotated{}".format(i), rotated)
-        cv2.waitKey(0)
+        # for i in range(n_regions):
+        #     if i != cc_i:
+        #         msk1 = np.zeros(img.shape[:2], dtype = "uint8")
+        #         msk1[r['masks'][:, :, i]] = 255
+        #         m1 = cv2.fastNlMeansDenoising(msk1)
+        #         nail_clipped = ip.clip(m1)
+        #         rc = cv2.imwrite(TEST_DIR + fn + "_nail{}.png".format(i), nail_clipped)

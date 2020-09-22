@@ -2,7 +2,18 @@ import cv2
 import numpy as np
 from math import atan2, cos, sin, sqrt, pi
 
+
+
+def clip_finger_mask( idx, r, img ):
+    msk1 = np.zeros(img.shape[:2], dtype="uint8")
+    msk1[r['masks'][:, :, idx]] = 255
+    m1 = cv2.fastNlMeansDenoising(msk1)
+    nail_clipped = clip(m1)
+    return nail_clipped
+
+
 def upright( msk, is_left = True):
+    orientation = 0
     rc, msk1 = cv2.threshold(msk, 0.5, 1, cv2.THRESH_BINARY)
     hsum = np.sum(msk1, axis=0)
     x_pos = [0] * 4
@@ -43,13 +54,18 @@ def upright( msk, is_left = True):
         while msk1[j,x_pos[i]] < 1.0:
             j += 1;
         y_pos[i] = j;
-    if ( y_pos[0] < y_pos[1] ) or ( y_pos[3] < y_pos[2]):
-        msk = cv2.flip( msk, 0)
-        if is_left and (y_pos[0] > y_pos[3]):
-            msk = cv2.flip(msk, 1)
-        if (not is_left) and (y_pos[0] < y_pos[3]):
-            msk = cv2.flip(msk, 1)
-    return msk
+    if ( y_pos[0] < y_pos[1] ) or ( y_pos[2] > y_pos[3]):
+        msk = cv2.rotate(msk, cv2.ROTATE_180)
+        if is_vertical:
+            orientation = 2
+        else:
+            orientation = 1
+    else:
+        if is_vertical:
+            orientation = 0
+        else:
+            orientation = 3
+    return orientation, msk
 
 # testing
 # mm = upright(msk)
@@ -141,7 +157,7 @@ def get_orientation(pts, img):
     cntr[0] + 0.02 * eigenvectors[0, 0] * eigenvalues[0, 0], cntr[1] + 0.02 * eigenvectors[0, 1] * eigenvalues[0, 0])
     p2 = (
     cntr[0] - 0.02 * eigenvectors[1, 0] * eigenvalues[1, 0], cntr[1] - 0.02 * eigenvectors[1, 1] * eigenvalues[1, 0])
-    drawAxis(img, cntr, p1, (0, 255, 0), 1)
-    drawAxis(img, cntr, p2, (255, 255, 0), 5)
+    ##drawAxis(img, cntr, p1, (0, 255, 0), 1)
+    ##drawAxis(img, cntr, p2, (255, 255, 0), 5)
     angle = atan2(eigenvectors[0, 1], eigenvectors[0, 0])  # orientation in radians
     return angle
