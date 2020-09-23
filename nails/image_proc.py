@@ -3,14 +3,12 @@ import numpy as np
 from math import atan2, cos, sin, sqrt, pi
 
 
-
 def clip_finger_mask( idx, r, img ):
     msk1 = np.zeros(img.shape[:2], dtype="uint8")
     msk1[r['masks'][:, :, idx]] = 255
-    m1 = cv2.fastNlMeansDenoising(msk1)
-    nail_clipped = clip(m1)
+    #m1 = cv2.fastNlMeansDenoising(msk1)
+    nail_clipped = clip(msk1)
     return nail_clipped
-
 
 def upright( msk, is_left = True):
     orientation = 0

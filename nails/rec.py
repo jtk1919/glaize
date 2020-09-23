@@ -91,6 +91,7 @@ def masked_image( img, mask):
         im[:,:,i][mask] = 0;
     return im
 
+
 # Create model object in inference mode.
 model = modellib.MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=config)
 
@@ -134,11 +135,9 @@ for f in files:
             img1 = masked_image(img1, r['masks'][:,:,i] )
     #
     orientation, msk = ip.upright( msk )
-    rc = cv2.imwrite( TEST_DIR + fn + "_nails.png",  img1)
-    rc = cv2.imwrite( TEST_DIR + fn + "_nails_mask.png", msk)
-    print( "orientation: ", orientation)
     #
     if orientation == 0:
+        print("orientation: ", orientation)
         if (n_regions == 2):
             region1_H_begin, region1_W_begin, region1_H_end, region1_W_end = r['rois'][0]
             region2_H_begin, region2_W_begin, region2_H_end, region2_W_end = r['rois'][1]
@@ -147,24 +146,27 @@ for f in files:
             clipped_nail = ip.clip_finger_mask(idx, r, image)
             rc = cv2.imwrite(TEST_DIR + fn + "_l4.png", clipped_nail)
         elif (n_regions == 5):
+            rc = cv2.imwrite(TEST_DIR + fn + "_image.png", image)
+            rc = cv2.imwrite(TEST_DIR + fn + "_nails.png", img1)
+            rc = cv2.imwrite(TEST_DIR + fn + "_mask.png", msk)
             widths = []
             for i in [0, 1, 2, 3, 4]:
                 if i != cc_i:
                     y1, x1, y2, x2 = r['rois'][i]
                     widths.append( (i, x1) )
             widths.sort( key = lambda x:x[1] )
-            #print( "CC index : ", cc_i)
             for i in [0, 1, 2, 3] :
                 idx = widths[i][0]
                 clipped_nail = ip.clip_finger_mask( idx, r, image)
+                clipped_nail = cv2.cvtColor(clipped_nail,cv2.COLOR_GRAY2RGB)
                 rc = cv2.imwrite(TEST_DIR + fn + "_l{}.png".format(i), clipped_nail)
         else:
             raise Exception("Wrong number of regions ({}) detected!".format(len(r['rois'][:, 0])))
 
-        # for i in range(n_regions):
-        #     if i != cc_i:
-        #         msk1 = np.zeros(img.shape[:2], dtype = "uint8")
-        #         msk1[r['masks'][:, :, i]] = 255
-        #         m1 = cv2.fastNlMeansDenoising(msk1)
-        #         nail_clipped = ip.clip(m1)
-        #         rc = cv2.imwrite(TEST_DIR + fn + "_nail{}.png".format(i), nail_clipped)
+            # for i in range(n_regions):
+            #     if i != cc_i:
+            #         msk1 = np.zeros(img.shape[:2], dtype = "uint8")
+            #         msk1[r['masks'][:, :, i]] = 255
+            #         m1 = cv2.fastNlMeansDenoising(msk1)
+            #         nail_clipped = ip.clip(m1)
+            #         rc = cv2.imwrite(TEST_DIR + fn + "_nail{}.png".format(i), nail_clipped)
