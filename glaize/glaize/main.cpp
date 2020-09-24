@@ -33,7 +33,7 @@ static vector<string> getFiles();
 void mouse_callback(int  event, int  x, int  y, int  flag, void* param);
 static void processImageScaling();
 static size_t distPointToLine(cv::Point l1, cv::Point l2, cv::Point p);
-static size_t angle2Lines(cv::Point l1p1, cv::Point l1p2, cv::Point l2p1, cv::Point l2p2);
+static float angle2Lines(cv::Point l1p1, cv::Point l1p2, cv::Point l2p1, cv::Point l2p2);
 static cv::Mat get_finger(size_t idx, size_t xpos);
 static void output_csv();
 
@@ -152,14 +152,26 @@ int main(size_t monitorHeight, size_t monitorWidth )
 
 void processImageScaling()
 {
-    size_t dist, angleToS1, angleToS2;
-
-    dist = distPointToLine(se1, se2, se3) + distPointToLine(se1, se2, se4)
-         + distPointToLine(se3, se4, se1) + distPointToLine(se3, se4, se2);
-    dist = dist / 4;
+    size_t dist = 0, d;
+    float angleToS1, angleToS2;
 
     angleToS1 = angle2Lines(le1, le2, se1, se2);
+    d = distPointToLine(se1, se2, se3);
+    d /= sin(angleToS1 * M_PI / 180);
+    dist = d;
+    d = distPointToLine(se1, se2, se4);
+    d /= sin(angleToS1 * M_PI / 180);
+    dist += d;
+
     angleToS2 = angle2Lines(le1, le2, se3, se4);
+    d = distPointToLine(se3, se4, se1);
+    d /= sin(angleToS2 * M_PI / 180);
+    dist += d;
+    d = distPointToLine(se3, se4, se2);
+    d /= sin(angleToS2 * M_PI / 180);
+    dist += d;
+
+    dist = dist / 4;
 
     cc_length = dist;
     conversion_rate = conversion_rate * CC_LEN_PX / dist;
@@ -167,7 +179,8 @@ void processImageScaling()
     cout << "Angle s1: " << angleToS1 << ",  Angle s2: " << angleToS2 << ", Diatance s1-s2: " << dist << endl;
 }
 
-size_t angle2Lines(cv::Point l1p1, cv::Point l1p2, cv::Point l2p1, cv::Point l2p2)
+
+float angle2Lines(cv::Point l1p1, cv::Point l1p2, cv::Point l2p1, cv::Point l2p2)
 {
     float l1ToHorizontal, l2ToHorizontal, angle;
 
@@ -177,15 +190,35 @@ size_t angle2Lines(cv::Point l1p1, cv::Point l1p2, cv::Point l2p1, cv::Point l2p
     l1ToHorizontal = (l1ToHorizontal < 0) ? 180 + l1ToHorizontal : l1ToHorizontal;
     l2ToHorizontal = (l2ToHorizontal < 0) ? 180 + l2ToHorizontal : l2ToHorizontal;
 
-    l1ToHorizontal = (l1ToHorizontal > 90.0) ? 180 - l1ToHorizontal : l1ToHorizontal;
-    l2ToHorizontal = (l2ToHorizontal > 90.0) ? 180 - l2ToHorizontal : l2ToHorizontal;
+    //l1ToHorizontal = (l1ToHorizontal > 90.0) ? 180 - l1ToHorizontal : l1ToHorizontal;
+    //l2ToHorizontal = (l2ToHorizontal > 90.0) ? 180 - l2ToHorizontal : l2ToHorizontal;
 
-    cout << "Angles le: " << l1ToHorizontal << " se: " << l2ToHorizontal << endl;
-
-   
     angle = l1ToHorizontal + l2ToHorizontal;
+
+    cout << "Angle between le-se:"<< angle<< "  le: " << l1ToHorizontal << " se: " << l2ToHorizontal << endl;
+
     return angle;
 }
+
+
+size_t distPointToLine(cv::Point l1, cv::Point l2, cv::Point p)
+{
+    long dist, dividend, divisor, y2y1, x2x1;
+
+    y2y1 = l2.y - l1.y;
+    x2x1 = l2.x - l1.x;
+
+    dividend = (y2y1 * p.x) - (x2x1 * p.y) + (l2.x * l1.y) - (l2.y * l1.x);
+    dividend = abs(dividend);
+
+    divisor = sqrt((y2y1 * y2y1) + (x2x1 * x2x1));
+
+    dist = dividend / divisor;
+
+    return dist;
+}
+
+
 
 string itos(int i)
 {
@@ -210,7 +243,7 @@ vector<Point> denoise(Mat &gray, Mat &img)
     cv::findContours(gray, cnts, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
     if (cnts.size() == 0)
     {
-        throw std::domain_error("[fillMask] Failed to findnail contorus.");
+        throw std::domain_error("[fillMask] Failed to find nail contorus.");
     }
     if (cnts.size() > 1)
     {
@@ -219,14 +252,17 @@ vector<Point> denoise(Mat &gray, Mat &img)
                 return contourArea(c1, false) > contourArea(c2, false);
             });
     }
+
     Mat newgray( gray.size(), gray.type(), Scalar(0) );
     cv::drawContours(newgray, cnts, 0, 255, -1);
     gray.release();
     gray = newgray;
-    Mat newcol(img.size(), img.type(), Scalar(0, 0, 0));
+
+    Mat newcol( img.size(), img.type(), Scalar(0, 0, 0));
     cv::drawContours(newcol, cnts, 0, Scalar(255, 255, 255), -1);
     img.release();
     img = newcol;
+
     return cnts[0];
 }
 
@@ -242,7 +278,7 @@ void printrow( Mat &gray, size_t y)
 
 double pxtomm(size_t px)
 {
-    double mm = px ;
+    double mm = px;
     mm /= CC_PX_PER_MM;
     return mm;
 }
@@ -314,27 +350,12 @@ cv::Mat get_finger(size_t idx, size_t xpos)
 }
 
 
-size_t distPointToLine(cv::Point l1, cv::Point l2, cv::Point p)
-{
-    long dist, dividend, divisor, y2y1, x2x1;
-
-    y2y1 = l2.y - l1.y;
-    x2x1 = l2.x - l1.x;
-
-    dividend = (y2y1 * p.x) - (x2x1 * p.y) + (l2.x * l1.y) - (l2.y * l1.x);
-    dividend = abs(dividend);
-
-    divisor = sqrt((y2y1 * y2y1) + (x2x1 * x2x1) );
-
-    dist = dividend / divisor;
-
-    return dist;
-}
 
 void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
 {
     if (event == EVENT_LBUTTONDOWN)
     {
+      
         if (exit_btn.contains(Point(x, y)))
         {
             cv::destroyAllWindows();
@@ -448,7 +469,8 @@ void output_csv()
     ofstream ofs(csvf.c_str(), ios_base::out);
     ofs << std::fixed;
     ofs << std::setprecision(1);
-    ofs << "finger ID from left small finger, left half (l) or right half (r), half cross section mm at 0.5mm intervals ......" << endl;
+    ofs << "finger ID from left small finger, left half (l) or right half (r), "
+        << "half cross section mm at 0.5mm intervals from bottom up... "<< endl;
     for (size_t i = 0; i < GL_NUM_FINGERS; ++i)
     {
         ofs << i << ",l,";
