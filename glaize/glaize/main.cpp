@@ -4,7 +4,6 @@
 #include <Windows.h>
 #include <iostream>
 #include <fstream>
-#include <sstream>
 #include <vector>
 #include <set>
 #include <math.h>
@@ -13,12 +12,15 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 
+#include "ImageIO.h"
+
 
 #define WIN "Image"
 
 
 using namespace std;
 using namespace cv;
+
 
 vector< pair< vector<float>, vector<float> > >  nail_metrics( GL_NUM_FINGERS, pair< vector<float>, vector<float> >() );
 
@@ -50,9 +52,11 @@ boolean redo = false;
 Mat img1, img2;
 int mcount = 0;
 cv::Point se1, se2, se3, se4, le1, le2;
-size_t cc_length = 0;
-double conversion_rate = 1;
-string current_fn;
+
+ImageIO imgFiles;
+size_t current_finger_image_idx = 0;
+size_t cc_length[] = { 0, 0, 0, 0 };
+double conversion_rate[] = { 1.0, 1.0, 1.0, 1.0 };
 
 
 int main(size_t monitorHeight, size_t monitorWidth )
@@ -61,61 +65,71 @@ int main(size_t monitorHeight, size_t monitorWidth )
 
     cout << "Screen size: " << monitorWidth << " x " <<  monitorHeight  << endl;
 
-    vector<string> fn = getFiles();
-	cout << "Read " << fn.size() << " files" << endl;
+    //vector<string> fn = getFiles();
+	//cout << "Read " << fn.size() << " files" << endl;
 
     cv::namedWindow( WIN, cv::WINDOW_GUI_NORMAL);
     cv::moveWindow(WIN, 0, 0);
 
-    for (size_t i = 0; i < fn.size(); ++i)
+    bool done = false;
+    for (size_t i = 0; !done; ++i)
     {
-        if (redo)
-        {
-            --i;
-            redo = false;
+        for (size_t j = 0; j < 2; ++j)
+        {         
+            setMouseCallback(WIN, mouse_callback);
+            canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
+
+            current_finger_image_idx = j;
+            string fn = (j == 0) ? imgFiles.getLeftFingerF() : imgFiles.getLeftThumbF();
+
+            cv::Mat img = cv::imread(fn);
+            int r = img.rows;
+            int c = img.cols;
+            if (r > c)
+            {
+                cv::rotate(img, img, cv::ROTATE_90_COUNTERCLOCKWISE);
+                r = c;
+                c = img.cols;
+            }
+            cout << "Image size: " << c << " x " << r << " | ";
+
+            int rr = monitorHeight - 32;
+            int cc = c * (monitorHeight - 32);
+            cc /= r;
+            if (cc > (monitorWidth - 400))
+            {
+                cc = monitorWidth - 400;
+                rr = r * (monitorWidth - 400);
+                rr /= c;
+            }
+            conversion_rate[j] = cc;
+            conversion_rate[j] /= c;
+
+            cv::resize(img, img1, cv::Size(cc, rr));
+            cv::resizeWindow(WIN, Size(monitorWidth - 4, monitorHeight - 4));
+            cout << cc << " x " << rr << endl;
+
+            mcount = 0;
+            img2 = img1.clone();
+            img1.copyTo(canvas(Rect(0, 0, img1.cols, img1.rows)));
+
+            cv::putText(canvas, "Mark a short edge of credit card.",
+                Size(img1.cols + 6, 40), font, 0.6, Scalar(0, 255, 0), 1);
+
+            exit_btn = cv::Rect(canvas.cols - 400, 600, 320, 40);
+            canvas(exit_btn) = Vec3b(0, 200, 0);
+            putText(canvas(exit_btn), "Exit Program",
+                Point((int)(exit_btn.width * 0.2), (int)(exit_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
+
+            cv::imshow(WIN, canvas);
+            cv::waitKey(0);
+
+            if (redo)
+            {
+                --j;
+                redo = false;
+            }
         }
-        setMouseCallback(WIN, mouse_callback);
-        canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
-
-        current_fn = fn[i];
-        cv::Mat img = cv::imread(fn[i] +"_image.png");
-        int r = img.rows;
-        int c = img.cols;
-        if ( r > c )
-        {
-            cv::rotate( img, img, cv::ROTATE_90_COUNTERCLOCKWISE);
-            r = c;
-            c = img.cols;
-        }
-        cout << "Image size: " << c << " x " << r << " | ";
-
-        int rr = monitorHeight - 32;
-        int cc = c * ( monitorHeight - 32) / r;
-        if (cc > ( monitorWidth - 400))
-        {
-            cc = monitorWidth - 400;
-            rr = r * (monitorWidth - 400) / c;
-        }
-        conversion_rate = cc / c;
-        
-        cv::resize(img, img1, cv::Size(cc, rr));
-        cv::resizeWindow( WIN , Size(monitorWidth - 4, monitorHeight - 4));
-        cout << cc << " x " << rr << endl;
-
-        mcount = 0;
-        img2 = img1.clone();
-        img1.copyTo(canvas(Rect(0, 0, img1.cols, img1.rows)));
-
-        cv::putText(canvas, "Mark a short edge of credit card.",
-            Size(img1.cols + 6, 40), font, 0.6, Scalar( 0, 255, 0), 1);
-
-        exit_btn = cv::Rect(canvas.cols - 400, 600, 320, 40);
-        canvas(exit_btn) = Vec3b(0, 200, 0);
-        putText(canvas(exit_btn), "Exit Program",
-            Point((int)(exit_btn.width * 0.2), (int)(exit_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
-
-        cv::imshow(WIN, canvas);
-        cv::waitKey(0);
 
         if (!redo)
         {
@@ -128,25 +142,42 @@ int main(size_t monitorHeight, size_t monitorWidth )
                 Point((int)(exit_btn.width * 0.2), (int)(exit_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
 
             putText(canvas, "Scale: 85.6 millimeters",
-                cv::Point(int((cc - CC_LEN_PX) / 2), 70), font, 0.73, Scalar(0, 255, 0), 1);
+                cv::Point(int(( monitorWidth - 400 - CC_LEN_PX) / 2), 70), font, 0.73, Scalar(0, 255, 0), 1);
             size_t x1, x2;
-            x1 = int((cc - CC_LEN_PX) / 2);
+            x1 = int((monitorWidth - 400 - CC_LEN_PX) / 2);
             x2 = x1 + CC_LEN_PX;
             cv::line(   canvas, cv::Point( x1 , 100 ) ,  cv::Point( x2, 100 ),  cv::Scalar(0, 255, 0), 2);
-            for (size_t i = 0; i < 4; ++i)
+            for (size_t k = 0; k < 5; ++k)
             {
-                cv::Mat3b lf = get_finger(i, 200 * i + 190 );
-                cout << "L Finger: " << i << " size ( r, c ) : ( " << lf.rows << ", " << lf.cols << " )" << endl;
-                lf.copyTo(canvas(Rect(200 * i + 190, 400 - lf.rows, lf.cols, lf.rows)));
+                cv::Mat3b lf = get_finger(k, 200 * k + 190 );
+                //cv::imshow("finger", lf);  cv::waitKey(0);
+                cout << "L Finger: " << k << " size ( r, c ) : ( " << lf.rows << ", " << lf.cols << " )" << endl;
+                lf.copyTo(canvas(Rect(200 * k + 190, 400 - lf.rows, lf.cols, lf.rows)));
             }
-            output_csv();
-            cout << cc_length << endl;
+            imgFiles.output_csv(nail_metrics );
+
             cv::imshow(WIN, canvas);
             cv::waitKey(0);
         }
     }
 
     cv:destroyWindow(WIN);
+}
+
+size_t fingerFileIndex(size_t finger_id)
+{
+    size_t idx = 0;
+    switch (finger_id )
+    {
+        case 0:
+        case 1:
+        case 2:
+        case 3: idx = 0;
+            break;
+        case 4: idx = 1;
+            break;
+    }
+    return idx;
 }
 
 
@@ -173,10 +204,10 @@ void processImageScaling()
 
     dist = dist / 4;
 
-    cc_length = dist;
-    conversion_rate = conversion_rate * CC_LEN_PX / dist;
+    cc_length[current_finger_image_idx] = dist;
+    conversion_rate[current_finger_image_idx] = conversion_rate[current_finger_image_idx] * CC_LEN_PX / dist;
 
-    cout << "Angle s1: " << angleToS1 << ",  Angle s2: " << angleToS2 << ", Diatance s1-s2: " << dist << endl;
+    cout << "Angle s1: " << angleToS1 << ",  Angle s2: " << angleToS2 << ", Distance s1-s2: " << dist << endl;
 }
 
 
@@ -190,8 +221,8 @@ float angle2Lines(cv::Point l1p1, cv::Point l1p2, cv::Point l2p1, cv::Point l2p2
     l1ToHorizontal = (l1ToHorizontal < 0) ? 180 + l1ToHorizontal : l1ToHorizontal;
     l2ToHorizontal = (l2ToHorizontal < 0) ? 180 + l2ToHorizontal : l2ToHorizontal;
 
-    //l1ToHorizontal = (l1ToHorizontal > 90.0) ? 180 - l1ToHorizontal : l1ToHorizontal;
-    //l2ToHorizontal = (l2ToHorizontal > 90.0) ? 180 - l2ToHorizontal : l2ToHorizontal;
+    l1ToHorizontal = (l1ToHorizontal > 90.0) ? 180 - l1ToHorizontal : l1ToHorizontal;
+    l2ToHorizontal = (l2ToHorizontal > 90.0) ? 180 - l2ToHorizontal : l2ToHorizontal;
 
     angle = l1ToHorizontal + l2ToHorizontal;
 
@@ -218,23 +249,6 @@ size_t distPointToLine(cv::Point l1, cv::Point l2, cv::Point p)
     return dist;
 }
 
-
-
-string itos(int i)
-{
-    stringstream ss;
-    ss << i;
-    return ss.str();
-}
-
-string ftos(double d)
-{
-    stringstream ss;
-    ss << std::fixed;
-    ss << std::setprecision(1);
-    ss << d;
-    return ss.str();
-}
 
 vector<Point> denoise(Mat &gray, Mat &img)
 {
@@ -287,11 +301,24 @@ double pxtomm(size_t px)
 cv::Mat get_finger(size_t idx, size_t xpos)
 {
     size_t w, h, cross_h, cross_v, hmid, x, y, x1=0, x2=0, left, right, step;
+    float cr = 1.0;
 
-    string f = current_fn + "_l" + itos(idx) + ".png";
-    cv::Mat img = cv::imread( f );
-    w = (int)(img.cols * conversion_rate);
-    h = (int)(img.rows * conversion_rate);
+    string f = imgFiles.getFingerMask(idx);
+    
+    switch (idx)
+    {
+        case 0:
+        case 1:
+        case 2:
+        case 3: cr = conversion_rate[0];
+                break;
+        case 4: cr = conversion_rate[1];
+                break;
+    }
+    cv::Mat img = cv::imread(f);
+    cr = conversion_rate[fingerFileIndex(idx)];
+    w = (int)(img.cols * cr);
+    h = (int)(img.rows * cr);
     cv::resize(img, img, cv::Size( w, h));
 
     Mat gray;
@@ -336,11 +363,18 @@ cv::Mat get_finger(size_t idx, size_t xpos)
         cout<< x1 << " - " << hmid << " - " << x2 << "    ";
 
         string metrics;
-        metrics += ftos(pxtomm(left)) + " mm | " + ftos(pxtomm(right)) + " mm ";
+        metrics += ImageIO::ftos(pxtomm(left)) + " mm | " + ImageIO::ftos(pxtomm(right)) + " mm ";
         cout << metrics << endl;
         size_t H = canvas.rows;
+        size_t pos = xpos - 20;
+        switch (idx)
+        {
+            case 0: pos -= 7; break;
+            case 2: pos += 5; break;
+            case 4: pos += 19; break;
+        }
         putText(canvas, metrics.c_str(),
-            cv::Point(xpos - 30, H - i * 40 - 80), font, 0.5, Scalar(0, 255, 0), 1);
+            cv::Point( pos, H - i * 30 - 50), font, 0.5, Scalar(0, 255, 0), 1);
 
         nail_metrics[idx].first.push_back(pxtomm(left));
         nail_metrics[idx].second.push_back(pxtomm(right));
@@ -451,41 +485,6 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
 
             ++mcount;
         }
-    }
-}
-
-void output_csv()
-{
-    size_t idx1, idx2;
-    string csvf, fn;
-
-    idx1 = current_fn.find_last_of("/\\");
-    idx2 = current_fn.find_last_of("/\\", idx1 -1);
-
-    fn = current_fn.substr(idx1);
-    csvf = current_fn.substr(0, idx2) + "/results/csv/" + fn + ".csv";
-    cout << "outputting to: " << csvf;
-
-    ofstream ofs(csvf.c_str(), ios_base::out);
-    ofs << std::fixed;
-    ofs << std::setprecision(1);
-    ofs << "finger ID from left small finger, left half (l) or right half (r), "
-        << "half cross section mm at 0.5mm intervals from bottom up... "<< endl;
-    for (size_t i = 0; i < GL_NUM_FINGERS; ++i)
-    {
-        ofs << i << ",l,";
-        for (size_t j = 0; j < nail_metrics[i].first.size(); ++j)
-        {
-            ofs<< nail_metrics[i].first[j] << ",";
-        }
-        ofs << endl;
-
-        ofs << i << ",r,";
-        for (size_t j = 0; j < nail_metrics[i].second.size(); ++j)
-        {
-            ofs << nail_metrics[i].second[j] << ",";
-        }
-        ofs << endl;
     }
 }
 
