@@ -12,6 +12,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 
+#include "config.h"
 #include "ImageIO.h"
 
 
@@ -21,23 +22,17 @@
 using namespace std;
 using namespace cv;
 
-
-vector< pair< vector<float>, vector<float> > >  nail_metrics( GL_NUM_FINGERS, pair< vector<float>, vector<float> >() );
-
-
-const int alpha_slider_max = 100;
-int alpha_slider;
-double alpha;
-double beta;
-
-static void RedirectIOToConsole();
 static vector<string> getFiles();
 void mouse_callback(int  event, int  x, int  y, int  flag, void* param);
 static void processImageScaling();
 static size_t distPointToLine(cv::Point l1, cv::Point l2, cv::Point p);
 static float angle2Lines(cv::Point l1p1, cv::Point l1p2, cv::Point l2p1, cv::Point l2p2);
 static cv::Mat get_finger(size_t idx, size_t xpos);
-static void output_csv();
+static void clear_metrics();
+
+
+
+vector< pair< vector<float>, vector<float> > >  nail_metrics( GL_NUM_FINGERS, pair< vector<float>, vector<float> >() );
 
 int font = cv::FONT_HERSHEY_COMPLEX;
 cv::Scalar blue = cv::Scalar(0, 0, 255);
@@ -46,7 +41,7 @@ cv::Point pt(-1, -1);
 bool newCoords = false;
 
 cv::Mat3b canvas;
-cv::Rect redo_btn, okay_btn, exit_btn;
+cv::Rect redo_btn, okay_btn, next_hand_btn, exit_btn;
 boolean redo = false;
 
 Mat img1, img2;
@@ -61,8 +56,6 @@ double conversion_rate[] = { 1.0, 1.0, 1.0, 1.0 };
 
 int main(size_t monitorHeight, size_t monitorWidth )
 {
-    RedirectIOToConsole();
-
     cout << "Screen size: " << monitorWidth << " x " <<  monitorHeight  << endl;
 
     //vector<string> fn = getFiles();
@@ -71,18 +64,27 @@ int main(size_t monitorHeight, size_t monitorWidth )
     cv::namedWindow( WIN, cv::WINDOW_GUI_NORMAL);
     cv::moveWindow(WIN, 0, 0);
 
+    cv::Mat img;
+
     bool done = false;
     for (size_t i = 0; !done; ++i)
     {
-        for (size_t j = 0; j < 2; ++j)
+        clear_metrics();
+        redo = false;
+
+        for (size_t j = 0; j < 2; redo ? redo = true : ++j)
         {         
             setMouseCallback(WIN, mouse_callback);
             canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
 
-            current_finger_image_idx = j;
-            string fn = (j == 0) ? imgFiles.getLeftFingerF() : imgFiles.getLeftThumbF();
+            if (!redo)
+            {
+                current_finger_image_idx = j;
+                string fn = (j == 0) ? imgFiles.getLeftFingerF() : imgFiles.getLeftThumbF();
+                img = cv::imread(fn);
+                redo = false;
+            }
 
-            cv::Mat img = cv::imread(fn);
             int r = img.rows;
             int c = img.cols;
             if (r > c)
@@ -124,17 +126,17 @@ int main(size_t monitorHeight, size_t monitorWidth )
             cv::imshow(WIN, canvas);
             cv::waitKey(0);
 
-            if (redo)
-            {
-                --j;
-                redo = false;
-            }
         }
 
         if (!redo)
         {
             cout << "Processing..." << endl;
             canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
+
+            next_hand_btn = cv::Rect(canvas.cols - 400, 500, 320, 40);
+            canvas(next_hand_btn) = Vec3b(0, 200, 0);
+            putText(canvas(next_hand_btn), "Run For Next Hand",
+                Point((int)(next_hand_btn.width * 0.08), (int)(next_hand_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
 
             exit_btn = cv::Rect( canvas.cols - 400, 600, 320, 40);
             canvas(exit_btn) = Vec3b(0, 200, 0);
@@ -392,6 +394,7 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
       
         if (exit_btn.contains(Point(x, y)))
         {
+            redo = false;
             cv::destroyAllWindows();
             exit(0);
         }
@@ -401,19 +404,30 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
             mcount = 0;
             cv::Rect rc = cv::Rect(280, 350, 1000, 120);
             canvas(rc) = Vec3b(0, 0, 0);
-            cv::putText(canvas, "Re-marking this image. Press any key to proceed",
+            cv::putText(canvas, "Re-marking this image. Press any key to proceed.",
                 Size(300, 400), font, 1, Scalar(0, 255, 0), 1);
             cv::imshow(WIN, canvas);
         }
         else if ( okay_btn.contains(Point(x, y)))
         {
+            redo = false;
             mcount = 0;
             cv::Rect rc = cv::Rect(280, 350, 1000, 120);
             canvas(rc) = Vec3b(0, 0, 0);
-            cv::putText(canvas, "Progressing image. Press any key to proceed",
+            cv::putText(canvas, "Progressing image. Press any key to proceed.",
                 Size(300, 400), font, 1, Scalar(0, 255, 0), 1);
             cv::imshow(WIN, canvas);
 
+        }
+        else if (next_hand_btn.contains(Point(x, y)))
+        {
+            redo = false;
+            mcount = 0;
+            cv::Rect rc = cv::Rect(280, 350, 1000, 120);
+            canvas(rc) = Vec3b(0, 0, 0);
+            cv::putText(canvas, "Proceeding to next customer hand. Press any key.",
+                Size(400, 400), font, 1, Scalar(0, 255, 0), 1);
+            cv::imshow(WIN, canvas);
         }
         else
         {
@@ -491,7 +505,7 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
 vector<string> getFiles()
 {
     vector<string> imgf; // std::string in opencv2.4, but cv::String in 3.0
-    string path = string(GL_DATA_WORKING_DIR) + "*_image.png";
+    string path = cfg.working_dir + "*_image.png";
     cv::glob(path, imgf, false);
 
     cout << "Processing "<< imgf.size() << " hand images."<< endl;
@@ -523,45 +537,13 @@ vector<string> getFiles()
 }
 
 
-void RedirectIOToConsole() 
+void clear_metrics()
 {
-
-    //Create a console for this application
-    AllocConsole();
-
-    // Get STDOUT handle
-    HANDLE ConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-    int SystemOutput = _open_osfhandle(intptr_t(ConsoleOutput), _O_TEXT);
-    FILE* COutputHandle = _fdopen(SystemOutput, "w");
-
-    // Get STDERR handle
-    HANDLE ConsoleError = GetStdHandle(STD_ERROR_HANDLE);
-    int SystemError = _open_osfhandle(intptr_t(ConsoleError), _O_TEXT);
-    FILE* CErrorHandle = _fdopen(SystemError, "w");
-
-    // Get STDIN handle
-    HANDLE ConsoleInput = GetStdHandle(STD_INPUT_HANDLE);
-    int SystemInput = _open_osfhandle(intptr_t(ConsoleInput), _O_TEXT);
-    FILE* CInputHandle = _fdopen(SystemInput, "r");
-
-    //make cout, wcout, cin, wcin, wcerr, cerr, wclog and clog point to console as well
-    ios::sync_with_stdio(true);
-
-    // Redirect the CRT standard input, output, and error handles to the console
-    freopen_s(&CInputHandle, "CONIN$", "r", stdin);
-    freopen_s(&COutputHandle, "CONOUT$", "w", stdout);
-    freopen_s(&CErrorHandle, "CONOUT$", "w", stderr);
-
-    //Clear the error state for each of the C++ standard stream objects. We need to do this, as
-    //attempts to access the standard streams before they refer to a valid target will cause the
-    //iostream objects to enter an error state. In versions of Visual Studio after 2005, this seems
-    //to always occur during startup regardless of whether anything has been read from or written to
-    //the console or not.
-    std::wcout.clear();
-    std::cout.clear();
-    std::wcerr.clear();
-    std::cerr.clear();
-    std::wcin.clear();
-    std::cin.clear();
+    for (size_t i = 0; i < GL_NUM_FINGERS; ++i)
+    {
+        nail_metrics[i].first.clear();
+        nail_metrics[i].second.clear();
+    }
 
 }
+

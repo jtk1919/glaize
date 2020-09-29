@@ -2,7 +2,7 @@
 
 #include <fstream>
 #include "resource.h"
-#include "def.h"
+#include "config.h"
 
 using namespace std;
 
@@ -40,7 +40,7 @@ private:
 
 	static string csvf; 
 
-	string _working_fn;
 	ifstream _csvfs;
+	string _working_fn;
 
 };

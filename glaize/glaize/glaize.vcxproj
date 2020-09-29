@@ -146,7 +146,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="def.h" />
+    <ClInclude Include="config.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="glaize.h" />
     <ClInclude Include="main.h" />
@@ -155,6 +155,7 @@
     <ClInclude Include="ImageIO.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="config.cpp" />
     <ClCompile Include="glaize.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="model.cpp" />

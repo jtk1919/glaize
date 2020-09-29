@@ -3,7 +3,7 @@
 #include "resource.h"
 #include <string>
 #include <set>
-#include "def.h"
+#include "config.h"
 
 
 const std::set<std::string>   ext_set( { ".png", ".jpg", ".jpeg", ".JPG", ".PNG", ".JPEG" } );
