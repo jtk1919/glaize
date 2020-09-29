@@ -1,9 +1,12 @@
 #include "config.h"
 
 #include <iostream>
+#include <sstream>
 #include <algorithm>
 #include <stdexcept>
 
+
+using namespace std;
 
 
 config cfg;
@@ -20,6 +23,15 @@ string trim(std::string str)
 	return str.substr(pos);
 }
 
+int config::strtoi(string s)
+{
+	int i;
+	stringstream ss;
+	ss << s;
+	ss >> i;
+	return i;
+}
+
 
 config::config()
 	:_cfgFile(GLAIZE_CFG_FILE),
@@ -28,7 +40,8 @@ config::config()
 	input_csv_file( working_dir + GL_IMAGE_INPUT_CSV),
 	lfinger_data_dir(data_dir + GL_DATA_PATH_LEFT_F),
 	lthumb_data_dir(data_dir + GL_DATA_PATH_LEFT_F),
-	results_csv_dir( data_dir + GL_RESULTS_PATH)
+	results_csv_dir( data_dir + GL_RESULTS_PATH),
+	last_run_file_id(-1)
 {
 	string var, value;
 	char line[1024];
@@ -67,6 +80,10 @@ config::config()
 			lfinger_data_dir = data_dir + GL_DATA_PATH_LEFT_F;
 			lthumb_data_dir = data_dir + GL_DATA_PATH_LEFT_T;
 			results_csv_dir = data_dir + GL_RESULTS_PATH;
+		}
+		else if (var.find("last_run_file_id") != string::npos)
+		{
+			last_run_file_id = strtoi(value);
 		}
 	}
 

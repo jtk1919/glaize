@@ -30,6 +30,16 @@ string ImageIO::ftos(double d)
 	return ss.str();
 }
 
+int ImageIO::last_run_file_id(string f)
+{
+	size_t i, j;
+	j = f.find_last_of('.');
+	string stub = f.substr(0, j);
+	i = stub.find_last_not_of("0123456789");
+	string ids = stub.substr(i);
+	return config::strtoi(ids);
+}
+
 
 ImageIO::ImageIO()
 {

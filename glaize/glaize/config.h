@@ -35,6 +35,10 @@ public:
 	string lthumb_data_dir;
 	string results_csv_dir;
 
+	int last_run_file_id;
+
+	static int strtoi(string s);
+
 private:
 
 	string	_cfgFile;

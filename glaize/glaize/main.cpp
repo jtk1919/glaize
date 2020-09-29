@@ -16,7 +16,7 @@
 #include "ImageIO.h"
 
 
-#define WIN "Image"
+#define WIN_DEF "Image"
 
 
 using namespace std;
@@ -30,7 +30,7 @@ static float angle2Lines(cv::Point l1p1, cv::Point l1p2, cv::Point l2p1, cv::Poi
 static cv::Mat get_finger(size_t idx, size_t xpos);
 static void clear_metrics();
 
-
+static string WIN(WIN_DEF);
 
 vector< pair< vector<float>, vector<float> > >  nail_metrics( GL_NUM_FINGERS, pair< vector<float>, vector<float> >() );
 
@@ -53,6 +53,8 @@ size_t current_finger_image_idx = 0;
 size_t cc_length[] = { 0, 0, 0, 0 };
 double conversion_rate[] = { 1.0, 1.0, 1.0, 1.0 };
 
+bool process_next = cfg.last_run_file_id < 1 ;
+size_t cc = 0;
 
 int main(size_t monitorHeight, size_t monitorWidth )
 {
@@ -61,29 +63,45 @@ int main(size_t monitorHeight, size_t monitorWidth )
     //vector<string> fn = getFiles();
 	//cout << "Read " << fn.size() << " files" << endl;
 
-    cv::namedWindow( WIN, cv::WINDOW_GUI_NORMAL);
-    cv::moveWindow(WIN, 0, 0);
-
     cv::Mat img;
+    string fn;
 
     bool done = false;
     for (size_t i = 0; !done; ++i)
     {
+        ++cc;
         clear_metrics();
         redo = false;
 
         for (size_t j = 0; j < 2; redo ? redo = true : ++j)
         {         
-            setMouseCallback(WIN, mouse_callback);
-            canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
-
+            
             if (!redo)
             {
                 current_finger_image_idx = j;
-                string fn = (j == 0) ? imgFiles.getLeftFingerF() : imgFiles.getLeftThumbF();
+                fn = (j == 0) ? imgFiles.getLeftFingerF() : imgFiles.getLeftThumbF();
                 img = cv::imread(fn);
                 redo = false;
             }
+
+            if (!process_next)
+            {
+                int fid = ImageIO::last_run_file_id(fn);
+                process_next = (j == 1) && (fid == cfg.last_run_file_id);
+                if (process_next)
+                {
+                    cc = 0;
+                }
+                cout << "skipping file: " << fn << endl;
+                continue;  // skip this one and start running for the next
+            }
+
+            WIN = fn;
+            cv::namedWindow(WIN, cv::WINDOW_GUI_NORMAL);
+            cv::moveWindow(WIN, 0, 0);
+            setMouseCallback(WIN, mouse_callback);
+
+            canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
 
             int r = img.rows;
             int c = img.cols;
@@ -127,6 +145,16 @@ int main(size_t monitorHeight, size_t monitorWidth )
             cv::waitKey(0);
 
         }
+
+        if (process_next && ( cc > 0) )
+        {
+
+        }
+        else
+        {
+            continue;
+        }
+        
 
         if (!redo)
         {

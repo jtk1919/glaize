@@ -33,6 +33,7 @@ public:
 
 	static string itos(int i);
 	static string ftos(double d);
+	static int last_run_file_id(string f);
 
 	void output_csv(vector< pair< vector<float>, vector<float> > >  &nail_metrics);
 

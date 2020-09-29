@@ -1,0 +1,4 @@
+#congif file for glaise application
+[DEFAULT]
+data_dir = D:/data/
+last_run_file_id = 25
