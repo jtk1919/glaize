@@ -17,7 +17,6 @@ config = configparser.ConfigParser()
 config.read(CONFIG_FILE)
 DATA_DIR = config['DEFAULT']['data_dir']
 
-
 IMAGES_DIR = DATA_DIR + 'images\\left_fingers\\'
 LEFT_THUMB_DIR = DATA_DIR + 'images\\left_thumb\\'
 RESULTS_DIR = DATA_DIR + 'results\\left_fingers\\'
