@@ -6,7 +6,6 @@ import cv2
 import argparse
 import glob
 import csv
-import pyheif
 import PIL
 import configparser
 
@@ -17,15 +16,24 @@ config = configparser.ConfigParser()
 config.read(CONFIG_FILE)
 DATA_DIR = config['DEFAULT']['data_dir']
 
-IMAGES_DIR = DATA_DIR + 'images\\left_fingers\\'
-LEFT_THUMB_DIR = DATA_DIR + 'images\\left_thumb\\'
-RESULTS_DIR = DATA_DIR + 'results\\left_fingers\\'
-TEST_DIR = DATA_DIR + 'test\\'
-# IMAGES_DIR = "D:\\data\\fn\\"
-# RESULTS_DIR = "D:\\data\\results\\fake_nails\\"
+IMAGES_DIR = DATA_DIR + 'ref_nails\\'
+LEFT_THUMB_DIR = DATA_DIR + 'ref_nails\\'
+RESULTS_DIR = DATA_DIR + 'results\ref_fingers\\'
+TEST_DIR = DATA_DIR + 'testref\\'
+
+REF_FINGERS = [ 'Left fingers combi 1', 'Left fingers combi 2 and 3',
+                'Left fingers combi 4', 'Left fingers combi 5 and 7',
+                'left fingers combi 6', 'Left fingers combi 8 and 9',
+                'Left fingers combi 10','Left fingers combi 11',
+                'Left fingers combi 12', 'Left fingers combi 13 and 14']
+REF_THUMBS = [ 'Thumb combi 1 and 2', 'Thumb combi 3, 4 and 5',
+               'Thumb combi 6, 7 and 8', 'Thumb combi 9, 10, 11, 12 and 13',
+               'Thumb combi 14']
+
+
 
 csvf = TEST_DIR + "rec.csv"
-
+csverr = TEST_DIR + "err.csv"
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--image_name', type=str, default='test_image1.jpg', help='name of image')
@@ -44,6 +52,25 @@ MODEL_DIR = os.path.join(ROOT_DIR, "logs")
 NAILS_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_nails_v1.h5")
 
 IMAGE_DIR = os.path.join(ROOT_DIR, "../nail_images")
+
+
+def createDirs():
+    try:
+        os.mkdir( TEST_DIR )
+    except:
+        print( "{} exists".format( TEST_DIR))
+    os.chdir(TEST_DIR)
+    try:
+        for i in range(len(REF_FINGERS)):
+            os.mkdir( REF_FINGERS[i] )
+    except:
+        print( "Error while creating finger sub-directories in ", TEST_DIR)
+    try:
+        for i in range(len(REF_THUMBS)):
+            os.mkdir( REF_THUMBS[i] )
+    except:
+        print( "Error while creating thumb sub-directories in ", TEST_DIR)
+
 
 
 class NailsConfig(Config):
@@ -89,11 +116,9 @@ def read_heic(path):
 def get_fnames_from_path(fpath):
     path, fname = os.path.split(fpath)
     fn, ext = fname.split(".")
-    x = fpath.replace('left_fingers', 'left_thumb')
-    x = x.replace('Left Fingers', 'Left Thumb')
-    x = x.replace('Left fingers', 'Left thumb')
-    x = x.replace('left fingers', 'left thumb')
-    return fn, x
+    write_path = path.replace( 'ref_nails', 'testref') + '\\'
+    path = path + '\\'
+    return fn, path, write_path
 
 
 def area_from_mask(mask):
@@ -117,7 +142,7 @@ class_names = ['BG', 'nail', 'card']
 orientation = 0
 
 
-def main( img, fn, is_left = True ):
+def main( img, fn, write_path, is_left = True ):
     global model
     global orientation
     #
@@ -148,23 +173,23 @@ def main( img, fn, is_left = True ):
             msk[r['masks'][:, :, i]] = 255
             img1 = masked_image(img1, r['masks'][:, :, i])
     #
-    if n_regions == 5:
-        orientation, msk = ip.upright(msk)
-    #
+    ##if n_regions == 5:
+    ##    orientation, msk = ip.upright(msk)
+    orientation = 0
     if orientation == 0:
         if n_regions == 2:
-            _ = cv2.imwrite(TEST_DIR + fn + "_lthumb.png", img1)
-            _ = cv2.imwrite(TEST_DIR + fn + "_lt_mask.png", msk)
+            _ = cv2.imwrite(write_path + fn + "_lthumb.png", img1)
+            _ = cv2.imwrite(write_path + fn + "_lt_mask.png", msk)
             idx = 0
             if cc_i == idx:
                 idx += 1
             clipped_nail = ip.clip_finger_mask(idx, r, msk)
-            _ = cv2.imwrite(TEST_DIR + fn + "_l4.png", clipped_nail)
+            _ = cv2.imwrite(write_path + fn + "_l4.png", clipped_nail)
             rtn = True
         elif n_regions == 5:
-            _ = cv2.imwrite(TEST_DIR + fn + "_image.png", img)
-            _ = cv2.imwrite(TEST_DIR + fn + "_nails.png", img1)
-            _ = cv2.imwrite(TEST_DIR + fn + "_mask.png", msk)
+            _ = cv2.imwrite(write_path + fn + "_image.png", img)
+            _ = cv2.imwrite(write_path + fn + "_nails.png", img1)
+            _ = cv2.imwrite(write_path + fn + "_mask.png", msk)
             widths = []
             for i in [0, 1, 2, 3, 4]:
                 if i != cc_i:
@@ -175,40 +200,39 @@ def main( img, fn, is_left = True ):
                 idx = widths[i][0]
                 clipped_nail = ip.clip_finger_mask(idx, r, image)
                 clipped_nail = cv2.cvtColor(clipped_nail, cv2.COLOR_GRAY2RGB)
-                _ = cv2.imwrite(TEST_DIR + fn + "_l{}.png".format(i), clipped_nail)
+                _ = cv2.imwrite(write_path + fn + "_l{}.png".format(i), clipped_nail)
             rtn = True
         else:
-            _ = cv2.imwrite(TEST_DIR + fn + "_image.png", img)
-            _ = cv2.imwrite(TEST_DIR + fn + "_nails_err.png", img1)
-            _ = cv2.imwrite(TEST_DIR + fn + "_mask_err.png", msk)
+            _ = cv2.imwrite(write_path + fn + "_image.png", img)
+            _ = cv2.imwrite(write_path + fn + "_nails_err.png", img1)
+            _ = cv2.imwrite(write_path + fn + "_mask_err.png", msk)
             print("Wrong number of regions ({}) detected!".format(len(r['rois'][:, 0])))
             rtn = False
     return rtn
 
 ##-----------------------------------------
+createDirs()
 c = 0
+e = 0
 with open( csvf, 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
-    files = glob.glob(IMAGES_DIR + "*")
+    errf = open( csverr, 'w', newline='')
+    errwriter = csv.writer(errf)
+    files = glob.glob(IMAGES_DIR + "*/*.png")
     for f in files:
         c += 1
-        fn, thf = get_fnames_from_path(f)
-        print( "Running recognition on left hand: ", fn )
+        fn, pth, write_path = get_fnames_from_path(f)
+        print( "Running recognition on: ", fn , " in ", pth )
         #
         image = cv2.imread(f)
         img1 = image.copy()
-        success = main( img1, fn )
-        if not success:
-            continue
-        #
-        lth = cv2.imread(thf)
-        try:
-            print( "Thumb file size: ", lth.shape )
-        except:
-            print("The thumb file for left fingers [{}] does not exist at [{}]".format(f, lth))
-            continue
-        success = main( lth, fn)
+        success = main( img1, fn, write_path )
+        pth.replace( "\\", "\\\\")
         if success:
-            writer.writerow([ f, thf])
+            writer.writerow([ c, pth, fn + '.png'])
             csvfile.flush()
-
+            c += 1
+        else:
+            errwriter.writerow( [ e, pth, fn + '.png'] )
+            errf.flush()
+            e += 1

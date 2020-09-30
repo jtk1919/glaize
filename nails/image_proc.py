@@ -65,35 +65,6 @@ def upright( msk, is_left = True):
             orientation = 3
     return orientation, msk
 
-# testing
-# mm = upright(msk)
-# for f in files:
-#     fn = get_fname_from_path(f)
-#     img = cv2.imread(f)
-#     results = model.detect([img], verbose=1)
-#     #
-#     r = results[0]
-#     #
-#     n_regions = len(r['rois'][:, 0])
-#     cc_i = 0
-#     max_area = 0
-#     im2d = np.ones(img.shape[:2])
-#     for i in range(n_regions):
-#         area = np.sum(im2d[r['masks'][:, :, i]])
-#         if area > max_area:
-#             max_area = area
-#             cc_i = i
-#     msk = np.zeros(img.shape[:2])
-#     for i in range(n_regions):
-#         if i != cc_i:
-#             msk[r['masks'][:, :, i]] = 255
-#     rc = cv2.imwrite(TEST_DIR + fn + "_mask.png", msk)
-#     if n_regions == 5:
-#         mm = upright(msk)
-#         rc = cv2.imwrite(TEST_DIR + fn + "_upright.png", mm)
-
-
-
 def clip( msk1 ):
     hsum = np.sum(msk1, axis=0)
     vsum = np.sum(msk1, axis=1)

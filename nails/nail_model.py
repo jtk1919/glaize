@@ -24,7 +24,7 @@ class FullCrossModel:
         self.num_samples = 0
         self.full_cross_samples = []
         self.mean = np.zeros(np.sum(MODEL_NUM_CROSS_SECTIONS))
-        self.covariance
+        self.covariance = []
         self.VI = []
     #
     def addSample(self, crossFile):
