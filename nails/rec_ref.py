@@ -208,7 +208,7 @@ def main( img, fn, write_path, is_left = True ):
             _ = cv2.imwrite(write_path + fn + "_mask_err.png", msk)
             print("Wrong number of regions ({}) detected!".format(len(r['rois'][:, 0])))
             rtn = False
-    return rtn
+    return rtn, ( n_regions - 1 )
 
 ##-----------------------------------------
 createDirs()
@@ -220,19 +220,18 @@ with open( csvf, 'w', newline='') as csvfile:
     errwriter = csv.writer(errf)
     files = glob.glob(IMAGES_DIR + "*/*.png")
     for f in files:
-        c += 1
         fn, pth, write_path = get_fnames_from_path(f)
         print( "Running recognition on: ", fn , " in ", pth )
         #
         image = cv2.imread(f)
         img1 = image.copy()
-        success = main( img1, fn, write_path )
+        success, nfingers = main( img1, fn, write_path )
         pth.replace( "\\", "\\\\")
         if success:
-            writer.writerow([ c, pth, fn + '.png'])
+            writer.writerow([ nfingers, pth, fn + '.png'])
             csvfile.flush()
             c += 1
         else:
-            errwriter.writerow( [ e, pth, fn + '.png'] )
+            errwriter.writerow( [ nfingers, pth, fn + '.png'] )
             errf.flush()
             e += 1
