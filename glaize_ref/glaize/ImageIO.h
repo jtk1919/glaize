@@ -46,5 +46,6 @@ private:
 
 	ifstream _csvfs;
 	string _working_fn;
+	string _subdir;
 
 };

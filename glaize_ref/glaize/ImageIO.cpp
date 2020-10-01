@@ -42,7 +42,7 @@ int ImageIO::last_run_file_id(string f)
 
 
 ImageIO::ImageIO()
-	:num_fingers(4), working_dir("")
+	:num_fingers(4), working_dir(""), _subdir("")
 {
 	csvf = cfg.input_csv_file;
 	try
@@ -58,7 +58,7 @@ ImageIO::ImageIO()
 
 string ImageIO::getLeftFingerF()
 {
-	size_t idx;
+	size_t idx, idx1;
 	string lff, file;
 
 	getline(_csvfs, lff, ',');
@@ -76,6 +76,10 @@ string ImageIO::getLeftFingerF()
 	idx = path.find("ref_nails");
 	path.replace(idx, 9, "testref");
 	working_dir = path;
+
+	idx = path.find_last_of("\\/");
+	idx1 = path.find_last_of("\\/", idx - 1);
+	_subdir = path.substr(idx1+1, idx - idx1 -1);
 
 	getline(_csvfs, lff );
 	file = file + lff;
@@ -110,7 +114,7 @@ string ImageIO::getCsvFile() const
 	string temp(_working_fn);
 	//temp.replace( 0, 5, "");
 
-	string f = cfg.results_csv_dir + temp + ".csv";
+	string f = cfg.results_csv_dir + _subdir + "_"+ temp + ".csv";
 	return f;
 }
 

@@ -23,7 +23,7 @@ TEST_DIR = DATA_DIR + 'testref\\'
 
 REF_FINGERS = [ 'Left fingers combi 1', 'Left fingers combi 2 and 3',
                 'Left fingers combi 4', 'Left fingers combi 5 and 7',
-                'left fingers combi 6', 'Left fingers combi 8 and 9',
+                'Left fingers combi 6', 'Left fingers combi 8 and 9',
                 'Left fingers combi 10','Left fingers combi 11',
                 'Left fingers combi 12', 'Left fingers combi 13 and 14']
 REF_THUMBS = [ 'Thumb combi 1 and 2', 'Thumb combi 3, 4 and 5',
