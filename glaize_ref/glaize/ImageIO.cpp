@@ -108,7 +108,7 @@ string ImageIO::getFingerMask(uint8_t fid) const
 string ImageIO::getCsvFile() const
 {
 	string temp(_working_fn);
-	temp.replace( 0, 5, "");
+	//temp.replace( 0, 5, "");
 
 	string f = cfg.results_csv_dir + temp + ".csv";
 	return f;

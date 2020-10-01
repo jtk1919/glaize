@@ -10,7 +10,7 @@
 
 //#define GL_DATA_PATH_LEFT_F		"images/left_fingers/"
 //#define GL_DATA_PATH_LEFT_T		"images/left_thumbs/"
-#define GL_RESULTS_PATH			"results/csv"	
+#define GL_RESULTS_PATH			"results/csv/"	
 
 #define CC_LEN_PX				856
 #define CC_PX_PER_MM			10
