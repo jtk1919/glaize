@@ -91,30 +91,58 @@ string ImageIO::getLeftFingerF()
 }
 
 
-string ImageIO::getLeftThumbF()
+string ImageIO::getLeftThumbF( bool tonly )
 {
-	string f;
+	string f, lff;
+
+	if (tonly)
+	{
+		getline(_csvfs, lff, ',');
+		num_fingers = 1;
+	}
 	getline(_csvfs, f);
 	size_t end = f.find("_image.png");
-	string fn = f.substr(0, end);
-	return fn;
+	_fn = f.substr(0, end);
+
+	return _fn;
 }
 
 
-string ImageIO::getFingerMask(uint8_t fid) const
+string ImageIO::getFingerMask(uint8_t fid, bool tonly) const
 {
-	string ids = (num_fingers == 4) ? ImageIO::itos(fid) : ImageIO::itos(4);
-	string f = working_dir + _working_fn + "_l" + ids + ".png";
+	string ids, f;
+	if (tonly)
+	{
+		size_t end = _fn.find("_lthumb.png");
+		f = _fn.substr(0, end);
+		f += "_l4.png";
+	}
+	else
+	{
+		ids = (num_fingers == 4) ? ImageIO::itos(fid) : ImageIO::itos(4);
+		f = working_dir + _working_fn + "_l" + ids + ".png";
+	}
+
 	return f;
 }
 
 
-string ImageIO::getCsvFile() const
+string ImageIO::getCsvFile(bool tonly) const
 {
+	string f;
 	string temp(_working_fn);
 	//temp.replace( 0, 5, "");
 
-	string f = cfg.results_csv_dir + _subdir + "_"+ temp + ".csv";
+	if (tonly)
+	{
+		size_t end = _fn.find_last_of(".");
+		f = _fn.substr(0, end);
+		f += ".csv";
+	}
+	else
+	{
+		f = cfg.results_csv_dir + _subdir + "_" + temp + ".csv";
+	}
 	return f;
 }
 
@@ -130,16 +158,16 @@ void ImageIO::output_csv(vector< pair< vector<float>, vector<float> > >& nail_me
 	ofs << std::setprecision(1);
 	ofs << "finger ID from left small finger, left half (l) or right half (r), "
 		<< "half cross section mm at 0.5mm intervals from bottom up... " << endl;
-	for (size_t i = 0; i < GL_NUM_FINGERS; ++i)
+	for (size_t i = 0; i < num_fingers; ++i)
 	{
-		ofs << i << ",l,";
+		ofs <<((num_fingers == 1 ) ? 4 : i) << ",l,";
 		for (size_t j = 0; j < nail_metrics[i].first.size(); ++j)
 		{
 			ofs << nail_metrics[i].first[j] << ",";
 		}
 		ofs << endl;
 
-		ofs << i << ",r,";
+		ofs << ((num_fingers == 1) ? 4 : i) << ",r,";
 		for (size_t j = 0; j < nail_metrics[i].second.size(); ++j)
 		{
 			ofs << nail_metrics[i].second[j] << ",";

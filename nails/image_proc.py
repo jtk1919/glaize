@@ -1,14 +1,8 @@
 import cv2
 import numpy as np
 from math import atan2, cos, sin, sqrt, pi
+import imutils
 
-
-def clip_finger_mask( idx, r, img ):
-    msk1 = np.zeros(img.shape[:2], dtype="uint8")
-    msk1[r['masks'][:, :, idx]] = 255
-    #m1 = cv2.fastNlMeansDenoising(msk1)
-    nail_clipped = clip(msk1)
-    return nail_clipped
 
 def upright( msk, is_left = True):
     orientation = 0
@@ -65,7 +59,30 @@ def upright( msk, is_left = True):
             orientation = 3
     return orientation, msk
 
-def clip( msk1 ):
+
+def clip_finger_mask( idx, r, img, doWideClip = True ):
+    msk1 = np.zeros(img.shape[:2], dtype="uint8")
+    msk1[r['masks'][:, :, idx]] = 255
+    #m1 = cv2.fastNlMeansDenoising(msk1)
+    nail_clipped = clip(msk1)
+    return nail_clipped
+
+
+def pad( mask ):
+    Y, X = mask.shape
+    crp = mask.copy()
+    if Y > X:
+        diff = int((Y - X) / 2)
+        crp = np.zeros([Y, Y], dtype="uint8")
+        crp[0:Y, diff:diff + X] = mask
+    elif X > Y:
+        diff = int((X - Y) / 2)
+        crp = np.zeros([X, X], dtype="uint8")
+        crp[diff:diff + Y, 0:X] = mask
+    return crp
+
+
+def clip( msk1, doWideClip = False ):
     hsum = np.sum(msk1, axis=0)
     vsum = np.sum(msk1, axis=1)
     x1=0; y1=0; x2=0; y2=0
@@ -87,7 +104,10 @@ def clip( msk1 ):
             break
     rc, msk = cv2.threshold( msk1, 0.5, 255, cv2.THRESH_BINARY)
     cropped_nail = msk[ y1-2:y2+2, x1-2:x2+2 ]
-    return cropped_nail
+    crp = cropped_nail.copy()
+    if doWideClip:
+        crp = pad( crp )
+    return crp
 
 
 def drawAxis(img, p_, q_, colour, scale):
@@ -119,14 +139,42 @@ def get_orientation(pts, img):
     mean = np.empty((0))
     mean, eigenvectors, eigenvalues = cv2.PCACompute2(data_pts, mean)
     # Store the center of the object
-    cntr = (int(mean[0, 0]), int(mean[0, 1]))
+    #cntr = (int(mean[0, 0]), int(mean[0, 1]))
     #
-    rc = cv2.circle(img, cntr, 3, (255, 0, 255), 2)
-    p1 = (
-    cntr[0] + 0.02 * eigenvectors[0, 0] * eigenvalues[0, 0], cntr[1] + 0.02 * eigenvectors[0, 1] * eigenvalues[0, 0])
-    p2 = (
-    cntr[0] - 0.02 * eigenvectors[1, 0] * eigenvalues[1, 0], cntr[1] - 0.02 * eigenvectors[1, 1] * eigenvalues[1, 0])
-    ##drawAxis(img, cntr, p1, (0, 255, 0), 1)
-    ##drawAxis(img, cntr, p2, (255, 255, 0), 5)
+    #rc = cv2.circle(img, cntr, 3, (255, 0, 255), 2)
+    #p1 = (
+    #cntr[0] + 0.02 * eigenvectors[0, 0] * eigenvalues[0, 0], cntr[1] + 0.02 * eigenvectors[0, 1] * eigenvalues[0, 0])
+    #p2 = (
+    #cntr[0] - 0.02 * eigenvectors[1, 0] * eigenvalues[1, 0], cntr[1] - 0.02 * eigenvectors[1, 1] * eigenvalues[1, 0])
+    #drawAxis(img, cntr, p1, (0, 255, 0), 1)
+    #drawAxis(img, cntr, p2, (255, 255, 0), 5)
     angle = atan2(eigenvectors[0, 1], eigenvectors[0, 0])  # orientation in radians
     return angle
+
+
+def nail_upright( img ):
+    contours, _ = cv2.findContours( img, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    if len(contours) == 1:
+        contours = contours[0]
+    else:
+        max_area = 0
+        max_index = 0
+        for i in range( len(contours) ):
+            area = cv2.contourArea( contours[i] )
+            if ( area > max_area):
+                max_area = area
+                max_index = i
+        contours = contours[max_index]
+    #_ = cv2.drawContours( img, [contours], 0, (0, 255, 0), 2)
+    angle = get_orientation( contours, img )
+    agl = -1 *(90 - (angle * 180 / pi))
+    img1 = pad(img)
+    img1 = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
+    img1 = imutils.rotate(img1, agl )
+    img1 = cv2.cvtColor( img1, cv2.COLOR_BGR2GRAY )
+    print( "angle: ", agl )
+    img1 = clip(img1)
+    return img1
+
+
+

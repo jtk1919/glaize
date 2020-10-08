@@ -23,16 +23,16 @@ public:
 	}
 
 	string getLeftFingerF();
-	string getLeftThumbF();
+	string getLeftThumbF(bool tonly = true);
 
 	string getWorkingFn() const
 	{
 		return _working_fn;
 	}
 
-	string getFingerMask(uint8_t fid) const;
+	string getFingerMask(uint8_t fid, bool tonly = true) const;
 
-	string getCsvFile() const;
+	string getCsvFile(bool tonly = true) const;
 
 	static string itos(int i);
 	static string ftos(double d);
@@ -47,5 +47,7 @@ private:
 	ifstream _csvfs;
 	string _working_fn;
 	string _subdir;
+
+	string _fn;
 
 };

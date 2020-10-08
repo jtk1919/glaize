@@ -53,7 +53,7 @@ size_t current_finger_image_idx = 0;
 size_t cc_length[] = { 0, 0, 0, 0 };
 double conversion_rate[] = { 1.0, 1.0, 1.0, 1.0 };
 
-bool process_next = cfg.last_run_file_id < 1 ;
+bool process_next = true;
 size_t cc = 0;
 
 int main(size_t monitorHeight, size_t monitorWidth )
