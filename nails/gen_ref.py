@@ -137,5 +137,9 @@ for f in files:
     mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
     _ = cv2.imwrite(pth + fnx + "_0.png", mask)
 
+files = glob.glob(TEST_DIR + "Left fingers combi*/*_image.png" )
+for f in files:
+    writer.writerow([4, f])
 
+csvfile.flush()
 csvfile.close()
