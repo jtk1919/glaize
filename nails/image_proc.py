@@ -94,6 +94,8 @@ def clip( msk1, doWideClip = False ):
         elif in_nail and (hsum[i] == 0):
             x2 = i
             break
+    if x2 == 0:
+        x2 = len(hsum) -1
     in_nail = False
     for i in range( len(vsum) ):
         if ( not in_nail ) and ( vsum[i] > 0):
@@ -102,8 +104,23 @@ def clip( msk1, doWideClip = False ):
         elif in_nail and (vsum[i] == 0):
             y2 = i
             break
+    if y2 == 0:
+        y2 = len(vsum) -1
     rc, msk = cv2.threshold( msk1, 0.5, 255, cv2.THRESH_BINARY)
-    cropped_nail = msk[ y1-2:y2+2, x1-2:x2+2 ]
+    y1 = y1 -2
+    if y1 < 0:
+        y1 = 0
+    x1 = x1 - 2
+    if x1 < 0:
+        x1 = 0
+    r, c = msk.shape
+    x2 = x2 + 2
+    if x2 >= c:
+        x2 = c-1
+    y2 = y2 + 2
+    if y2 >= r:
+        y2 = r-1
+    cropped_nail = msk[ y1:y2, x1:x2]
     crp = cropped_nail.copy()
     if doWideClip:
         crp = pad( crp )
@@ -138,16 +155,6 @@ def get_orientation(pts, img):
     # Perform PCA analysis
     mean = np.empty((0))
     mean, eigenvectors, eigenvalues = cv2.PCACompute2(data_pts, mean)
-    # Store the center of the object
-    #cntr = (int(mean[0, 0]), int(mean[0, 1]))
-    #
-    #rc = cv2.circle(img, cntr, 3, (255, 0, 255), 2)
-    #p1 = (
-    #cntr[0] + 0.02 * eigenvectors[0, 0] * eigenvalues[0, 0], cntr[1] + 0.02 * eigenvectors[0, 1] * eigenvalues[0, 0])
-    #p2 = (
-    #cntr[0] - 0.02 * eigenvectors[1, 0] * eigenvalues[1, 0], cntr[1] - 0.02 * eigenvectors[1, 1] * eigenvalues[1, 0])
-    #drawAxis(img, cntr, p1, (0, 255, 0), 1)
-    #drawAxis(img, cntr, p2, (255, 255, 0), 5)
     angle = atan2(eigenvectors[0, 1], eigenvectors[0, 0])  # orientation in radians
     return angle
 
@@ -177,4 +184,14 @@ def nail_upright( img ):
     return img1
 
 
-
+###
+# Store the center of the object
+    #cntr = (int(mean[0, 0]), int(mean[0, 1]))
+    #
+    #rc = cv2.circle(img, cntr, 3, (255, 0, 255), 2)
+    #p1 = (
+    #cntr[0] + 0.02 * eigenvectors[0, 0] * eigenvalues[0, 0], cntr[1] + 0.02 * eigenvectors[0, 1] * eigenvalues[0, 0])
+    #p2 = (
+    #cntr[0] - 0.02 * eigenvectors[1, 0] * eigenvalues[1, 0], cntr[1] - 0.02 * eigenvectors[1, 1] * eigenvalues[1, 0])
+    #drawAxis(img, cntr, p1, (0, 255, 0), 1)
+    #drawAxis(img, cntr, p2, (255, 255, 0), 5)
