@@ -77,6 +77,11 @@ int main(size_t monitorHeight, size_t monitorWidth )
                 current_finger_image_idx = j;
                 //fn = (j == 0) ? imgFiles.getLeftFingerF() : imgFiles.getLeftThumbF();
                 fn = imgFiles.getLeftThumbF();
+                if (fn.empty())
+                {
+                    done = true;
+                    break;
+                }
                 cout << "processing: " << fn << endl;
                 img = cv::imread(fn);
                 redo = false;

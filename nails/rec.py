@@ -6,7 +6,6 @@ import cv2
 import argparse
 import glob
 import csv
-import pyheif
 import PIL
 import configparser
 
