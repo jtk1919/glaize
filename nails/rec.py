@@ -70,7 +70,7 @@ class InferenceConfig(config.__class__):
 
 
 config = InferenceConfig()
-config.display()
+##config.display()
 
 
 def read_heic(path):
