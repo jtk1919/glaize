@@ -141,5 +141,4 @@ files = glob.glob(TEST_DIR + "Left fingers combi*/*_image.png" )
 for f in files:
     writer.writerow([4, f])
 
-csvfile.flush()
 csvfile.close()
