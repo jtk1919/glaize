@@ -42,7 +42,7 @@ bool newCoords = false;
 
 cv::Mat3b canvas;
 cv::Rect redo_btn, okay_btn, next_hand_btn, exit_btn;
-boolean redo = false;
+boolean redo = false, skip = false;
 
 Mat img1, img2;
 int mcount = 0;
@@ -75,8 +75,17 @@ int main(size_t monitorHeight, size_t monitorWidth )
             if (!redo)
             {
                 current_finger_image_idx = j;
-                //fn = (j == 0) ? imgFiles.getLeftFingerF() : imgFiles.getLeftThumbF();
                 fn = imgFiles.getLeftThumbF();
+                if (imgFiles.num_fingers < 4)
+                {
+                    skip = true;
+                    continue;   // We have generated reference metrics for the thumbs.
+                }
+                else
+                {
+                    skip = false;
+                    fn += "_image.png";
+                }
                 if (fn.empty())
                 {
                     done = true;
@@ -86,7 +95,6 @@ int main(size_t monitorHeight, size_t monitorWidth )
                 img = cv::imread(fn);
                 redo = false;
             }
-
             
             /*if (!process_next)
             {
@@ -147,11 +155,10 @@ int main(size_t monitorHeight, size_t monitorWidth )
 
             cv::imshow(WIN, canvas);
             cv::waitKey(0);
-
         }
         
 
-        if (!redo)
+        if (!redo  &&  !skip  &&  !done )
         {
             std::cout << "Processing..." << endl;
             canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
@@ -175,7 +182,7 @@ int main(size_t monitorHeight, size_t monitorWidth )
             size_t num_fingers = imgFiles.num_fingers;
             for (size_t k = 0; k < num_fingers; ++k)
             {
-                cv::Mat3b lf = get_finger(k, 200 * k + 190 );
+                cv::Mat3b lf = get_finger(k, 200 * k + 190);
                 //cv::imshow("finger", lf);  cv::waitKey(0);
                 std::cout << "L Finger: " << k << " size ( r, c ) : ( " << lf.rows << ", " << lf.cols << " )" << endl;
                 lf.copyTo(canvas(Rect(200 * k + 190, 400 - lf.rows, lf.cols, lf.rows)));

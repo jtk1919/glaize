@@ -24,9 +24,26 @@ REF_FINGERS = [ 'Left fingers combi 1', 'Left fingers combi 2 and 3',
                 'Left fingers combi 6', 'Left fingers combi 8 and 9',
                 'Left fingers combi 10','Left fingers combi 11',
                 'Left fingers combi 12', 'Left fingers combi 13 and 14']
+
 REF_THUMBS = [ 'Thumb combi 1 and 2', 'Thumb combi 3 4 and 5',
                'Thumb combi 6 7 and 8', 'Thumb combi 9 10 11 12 and 13',
                'Thumb combi 14']
+
+COMBI_FINGERS = [ 'Left fingers combi 1', 'Left fingers combi 2 and 3',
+                  'Left fingers combi 2 and 3', 'Left fingers combi 4',
+                  'Left fingers combi 5 and 7', 'Left fingers combi 6',
+                  'Left fingers combi 5 and 7',  'Left fingers combi 8 and 9',
+                  'Left fingers combi 8 and 9',  'Left fingers combi 10',
+                  'Left fingers combi 11', 'Left fingers combi 12',
+                  'Left fingers combi 13 and 14', 'Left fingers combi 13 and 14' ]
+
+COMBI_THUMBS = [ 'Thumb combi 1 and 2', 'Thumb combi 1 and 2',
+                 'Thumb combi 3 4 and 5', 'Thumb combi 3 4 and 5',
+                 'Thumb combi 3 4 and 5', 'Thumb combi 6 7 and 8',
+                 'Thumb combi 6 7 and 8', 'Thumb combi 6 7 and 8',
+                 'Thumb combi 9 10 11 12 and 13', 'Thumb combi 9 10 11 12 and 13',
+                 'Thumb combi 9 10 11 12 and 13', 'Thumb combi 9 10 11 12 and 13',
+                 'Thumb combi 9 10 11 12 and 13', 'Thumb combi 14']
 
 csvf = TEST_DIR + "rec.csv"
 csverr = TEST_DIR + "err.csv"
@@ -102,6 +119,42 @@ class Thumb_Model:
         self.half_cross_model = np.concatenate( [ lcross, rcross ] )
         self.full_cross_model = np.add( lcross, rcross)
 
+class Combi_Hand_Model:
+    def __init__( self, combi_id):
+        self.half_cross_models = []
+        self.full_cross_models = []
+        combi_dir = TEST_DIR + COMBI_FINGERS[combi_id] + "\\"
+        files = glob.glob( combi_dir + "*.csv")
+        fn = files[0]
+        nmodel = Ref_Nail_Model(fn)
+        for i in range(4):
+            self.half_cross_models.append( (nmodel.half_cross_model[i] * 10).astype('int32') )
+            self.full_cross_models.append( (nmodel.full_cross_model[i] * 10).astype('int32') )
+        combi_dir = TEST_DIR + COMBI_THUMBS[combi_id] + "\\"
+        files = glob.glob(combi_dir + "*.csv")
+        fn = files[0]
+        tmodel = Thumb_Model(fn)
+        self.half_cross_models.append((tmodel.half_cross_model[i] * 10).astype('int32'))
+        self.full_cross_models.append((tmodel.full_cross_model[i] * 10).astype('int32'))
+        #
+    def geometric_distance_to(self, nail_vec, nail_id, half_cross=False):
+        vm = self.full_cross_models[nail_id]
+        if half_cross:
+            vm = self.half_cross_models[nail_id]
+        dist = distance.euclidean( nail_vec, vm )
+        return dist
+
+
+class Combi_Model_Set:
+    def __init__(self, cimbi_data_dir):
+        self.finger_models = []
+        self.thumb_models = []
+        self.combi_pairs = [ [0,0], [1,0], [1,1], [2,1], [3,1], [4,2], [3,2],
+                             [5,2], [5,3], [6,3], [7,3], [8,3], [9,3], [9,4] ]
+        for i in len(REF_FINGERS):
+             = TEST_DIR + REF_FINGERS[i]
+
+
 
 class Ref_Thumb_Models:
     def __init__(self):
@@ -133,7 +186,6 @@ class Hand_Model:
                 rcross = rht[:vlen]
             self.half_cross_model.append( np.concatenate( [ lcross, rcross ] ) )
             self.full_cross_model.append( np.add( lcross, rcross) )
-
 
 
 th = Ref_Thumb_Models()

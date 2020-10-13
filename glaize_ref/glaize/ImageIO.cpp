@@ -95,11 +95,9 @@ string ImageIO::getLeftThumbF( bool tonly )
 {
 	string f, lff;
 
-	if (tonly)
-	{
-		getline(_csvfs, lff, ',');
-		num_fingers = 1;
-	}
+	getline(_csvfs, lff, ',');
+	num_fingers = (size_t)(config::strtoi(lff));
+	
 	getline(_csvfs, f);
 	size_t end = f.find("_image.png");
 	_fn = f.substr(0, end);
@@ -120,7 +118,7 @@ string ImageIO::getFingerMask(uint8_t fid, bool tonly) const
 	else
 	{
 		ids = (num_fingers == 4) ? ImageIO::itos(fid) : ImageIO::itos(4);
-		f = working_dir + _working_fn + "_l" + ids + ".png";
+		f = _fn + "_l" + ids + ".png";
 	}
 
 	return f;
@@ -141,7 +139,7 @@ string ImageIO::getCsvFile(bool tonly) const
 	}
 	else
 	{
-		f = cfg.results_csv_dir + _subdir + "_" + temp + ".csv";
+		f = _fn + ".csv";
 	}
 	return f;
 }

@@ -23,16 +23,16 @@ public:
 	}
 
 	string getLeftFingerF();
-	string getLeftThumbF(bool tonly = true);
+	string getLeftThumbF(bool tonly = false);
 
 	string getWorkingFn() const
 	{
 		return _working_fn;
 	}
 
-	string getFingerMask(uint8_t fid, bool tonly = true) const;
+	string getFingerMask(uint8_t fid, bool tonly = false) const;
 
-	string getCsvFile(bool tonly = true) const;
+	string getCsvFile(bool tonly = false) const;
 
 	static string itos(int i);
 	static string ftos(double d);
