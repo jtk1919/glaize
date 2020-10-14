@@ -76,6 +76,11 @@ int main(size_t monitorHeight, size_t monitorWidth )
             {
                 current_finger_image_idx = j;
                 fn = imgFiles.getLeftThumbF();
+                if (fn.empty())
+                {
+                    done = true;
+                    break;
+                }
                 if (imgFiles.num_fingers < 4)
                 {
                     skip = true;
@@ -85,11 +90,6 @@ int main(size_t monitorHeight, size_t monitorWidth )
                 {
                     skip = false;
                     fn += "_image.png";
-                }
-                if (fn.empty())
-                {
-                    done = true;
-                    break;
                 }
                 cout << "processing: " << fn << endl;
                 img = cv::imread(fn);

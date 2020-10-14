@@ -119,6 +119,7 @@ class Thumb_Model:
         self.half_cross_model = np.concatenate( [ lcross, rcross ] )
         self.full_cross_model = np.add( lcross, rcross)
 
+
 class Combi_Hand_Model:
     def __init__( self, combi_id):
         self.half_cross_models = []
@@ -147,12 +148,11 @@ class Combi_Hand_Model:
 
 class Combi_Model_Set:
     def __init__(self, cimbi_data_dir):
-        self.finger_models = []
-        self.thumb_models = []
-        self.combi_pairs = [ [0,0], [1,0], [1,1], [2,1], [3,1], [4,2], [3,2],
-                             [5,2], [5,3], [6,3], [7,3], [8,3], [9,3], [9,4] ]
+        self.combi_models = []
         for i in len(REF_FINGERS):
-             = TEST_DIR + REF_FINGERS[i]
+            mdl = Combi_Hand_Model( i )
+            self.combi_models.append( mdl )
+
 
 
 
@@ -191,7 +191,7 @@ class Hand_Model:
 th = Ref_Thumb_Models()
 
 f = "D:\\data\\results\\csv\\fingers 1.csv"
-hm = Hand_Model(f )
+hm = Hand_Model(f)
 vf = (hm.full_cross_model[4] * 10).astype('int32')  ## thumbs
 vh = (hm.half_cross_model[4] * 10).astype('int32')  ## thumbs
 
