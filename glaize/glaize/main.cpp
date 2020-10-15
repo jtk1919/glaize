@@ -156,7 +156,7 @@ int main(size_t monitorHeight, size_t monitorWidth )
         }
         
 
-        if (!redo)
+        if (!redo  && !done )
         {
             cout << "Processing..." << endl;
             canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));

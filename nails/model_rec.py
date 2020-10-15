@@ -45,10 +45,18 @@ COMBI_THUMBS = [ 'Thumb combi 1 and 2', 'Thumb combi 1 and 2',
                  'Thumb combi 9 10 11 12 and 13', 'Thumb combi 9 10 11 12 and 13',
                  'Thumb combi 9 10 11 12 and 13', 'Thumb combi 14']
 
+NUM_COMBI = len(COMBI_FINGERS)
+
+SIZE_CHART = [ [ 11, 11, 11, 11, 10, 10, 10, 9,	9,	7,	9,	7,	6,	6 ],
+               [ 9, 7, 7, 7, 6,	7, 6, 5, 5,	3, 6, 4, 3,	3 ],
+               [ 6, 6, 6, 5, 5, 5, 5, 4, 4,	4, 4, 3, 2,	2 ],
+               [ 7, 7, 7, 6, 6, 6, 6, 5, 5, 3, 5, 4, 3, 3 ],
+               [ 4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1, 0 ] ]
+
 csvf = TEST_DIR + "rec.csv"
 csverr = TEST_DIR + "err.csv"
 
-NUM_CROSS_SEC = [ 16, 20, 20, 20, 24 ]
+NUM_CROSS_SEC = [ 20, 24, 24, 24, 30 ]
 
 
 parser = argparse.ArgumentParser()
@@ -65,7 +73,7 @@ def get_fnames_from_path(fpath):
     return fn, path, write_path
 
 
-def getFingerCross( fn):
+def getFingerCross(fn):
     with open(fn, "r") as csvf:
         reader = csv.reader(csvf)
         _ = next(reader)
@@ -77,6 +85,19 @@ def getFingerCross( fn):
             row = next(reader)
             rcross = np.array(row[2:-1], dtype=float)
             yield fid, lcross, rcross
+
+
+def getThumbCross(fn):
+    with open(fn, "r") as csvf:
+        reader = csv.reader(csvf)
+        _ = next(reader)
+        fid = -1
+        row = next(reader)
+        fid = np.int(row[0])
+        lcross = np.array(row[2:-1], dtype=float)
+        row = next(reader)
+        rcross = np.array(row[2:-1], dtype=float)
+        yield fid, lcross, rcross
 
 
 class Ref_Nail_Model:
@@ -103,7 +124,7 @@ class Ref_Nail_Model:
 class Thumb_Model:
     def __init__(self, tfile):
         self.tfile=tfile
-        self.data = getFingerCross(tfile)
+        self.data = getThumbCross(tfile)
         self.half_cross_model = []
         self.full_cross_model = []
         vlen = NUM_CROSS_SEC[4]
@@ -129,14 +150,14 @@ class Combi_Hand_Model:
         fn = files[0]
         nmodel = Ref_Nail_Model(fn)
         for i in range(4):
-            self.half_cross_models.append( (nmodel.half_cross_model[i] * 10).astype('int32') )
-            self.full_cross_models.append( (nmodel.full_cross_model[i] * 10).astype('int32') )
+            self.half_cross_models.append( (nmodel.half_cross_model[i] * 10).astype('int32').tolist() )
+            self.full_cross_models.append( (nmodel.full_cross_model[i] * 10).astype('int32').tolist() )
         combi_dir = TEST_DIR + COMBI_THUMBS[combi_id] + "\\"
         files = glob.glob(combi_dir + "*.csv")
         fn = files[0]
         tmodel = Thumb_Model(fn)
-        self.half_cross_models.append((tmodel.half_cross_model[i] * 10).astype('int32'))
-        self.full_cross_models.append((tmodel.full_cross_model[i] * 10).astype('int32'))
+        self.half_cross_models.append((tmodel.half_cross_model * 10).astype('int32').tolist())
+        self.full_cross_models.append((tmodel.full_cross_model * 10).astype('int32').tolist())
         #
     def geometric_distance_to(self, nail_vec, nail_id, half_cross=False):
         vm = self.full_cross_models[nail_id]
@@ -144,16 +165,35 @@ class Combi_Hand_Model:
             vm = self.half_cross_models[nail_id]
         dist = distance.euclidean( nail_vec, vm )
         return dist
+        #
+    def get_full_cross_combivec(self, fin_only=True):
+        vec = np.concatenate( self.full_cross_models[0:5], axis = 0 )
+        if fin_only:
+            vec = np.concatenate(self.full_cross_models[0:4], axis=0)
+        return vec
 
 
 class Combi_Model_Set:
     def __init__(self, cimbi_data_dir):
         self.combi_models = []
-        for i in len(REF_FINGERS):
+        for i in range( len(COMBI_FINGERS) ):
             mdl = Combi_Hand_Model( i )
             self.combi_models.append( mdl )
-
-
+        #
+    def geometric_hand_distance(self, hand_model, fin_only=True ):
+        hv = hand_model.get_full_cross_combivec( fin_only)
+        min_dist = 9999
+        min_idx = 0
+        dist_vec = []
+        for i in range(NUM_COMBI):
+            cv = self.combi_models[i].get_full_cross_combivec( fin_only )
+            dist = distance.euclidean( hv, cv)
+            dist_vec.append(dist)
+            if dist < min_dist:
+                min_dist = dist
+                min_idx = i
+            print( "Full-cross Combi distance from hand to combi {} is {}".format(i+1, dist) )
+        print( "Fingers classified to combi {} with distance {}".format( min_idx+1, dist_vec[min_idx]) )
 
 
 class Ref_Thumb_Models:
@@ -184,28 +224,34 @@ class Hand_Model:
             else:
                 lcross = lft[:vlen]
                 rcross = rht[:vlen]
-            self.half_cross_model.append( np.concatenate( [ lcross, rcross ] ) )
-            self.full_cross_model.append( np.add( lcross, rcross) )
+            self.half_cross_model.append( ( np.concatenate( [ lcross, rcross ] * 10).astype('int32').tolist() ) )
+            self.full_cross_model.append( (np.add( lcross, rcross) * 10).astype('int32').tolist() )
+        #
+    def get_full_cross_combivec(self, fin_only=True):
+        vec = np.concatenate(hm.full_cross_model[0:5], axis = 0 )
+        if fin_only:
+            vec = np.concatenate(hm.full_cross_model[0:4], axis=0)
+        return vec
 
 
-th = Ref_Thumb_Models()
+cm_set = Combi_Model_Set( "D:\\data\\testref\\" )
 
-f = "D:\\data\\results\\csv\\fingers 1.csv"
-hm = Hand_Model(f)
-vf = (hm.full_cross_model[4] * 10).astype('int32')  ## thumbs
-vh = (hm.half_cross_model[4] * 10).astype('int32')  ## thumbs
+flist = [ "D:\\data\\results\\csv\\fingers 1.csv",
+          'D:\\data\\results\\csv\\fingers A.csv',
+          'D:\\data\\results\\csv\\fingers B.csv',
+          'D:\\data\\results\\csv\\fingers D.csv',
+          'D:\\data\\results\\csv\\fingers E.csv',
+          'D:\\data\\results\\csv\\fingers F.csv'
+          ]
 
-min_dist = 9999
-min_idx = 0
-for i in range( len(th.models) ):
-    vm = ( th.models[i].full_cross_model * 10 ).astype('int32')
-    dist = distance.euclidean( vf, vm)
-    #d1 = distance.euclidean( vh, vm1)
-    print( 'Model {} - Euclidean distance: {:07.2f} full cross'.format( i, dist) )
-    if ( dist < min_dist ):
-        min_dist = dist
-        min_idx = i
+# backed up code
 
-print( "The thumb is classified to size id {} in {}".format( min_idx, REF_THUMBS[min_idx] ))
+for f in flist:
+    hm = Hand_Model(f)
+    cm_set.geometric_hand_distance(hm, False)
+    print(f)
+    print()
+
+
 
 
