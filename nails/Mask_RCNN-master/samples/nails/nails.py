@@ -38,7 +38,8 @@ import skimage.draw
 ROOT_DIR = os.path.abspath("../../")
 
 # Import Mask RCNN
-sys.path.append(ROOT_DIR)  # To find local version of the library
+##  # To find local version of the library [jtk]
+sys.path.insert( 0, ROOT_DIR)
 from mrcnn.config import Config
 from mrcnn import model as modellib, utils
 

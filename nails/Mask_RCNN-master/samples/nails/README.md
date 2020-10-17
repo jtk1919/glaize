@@ -1,3 +1,9 @@
+Nails training:
+
+python nails.py train --dataset=../../../images/ --weights=../../mask_rcnn_nails_v1.h5
+
+
+
 # Color Splash Example
 
 This is an example showing the use of Mask RCNN in a real application.
