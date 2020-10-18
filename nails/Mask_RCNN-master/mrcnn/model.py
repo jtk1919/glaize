@@ -22,6 +22,7 @@ import keras.backend as K
 import keras.layers as KL
 import keras.engine as KE
 import keras.models as KM
+from keras.callbacks import LearningRateScheduler, TensorBoard, ModelCheckpoint, Callback
 
 from mrcnn import utils
 
@@ -53,7 +54,6 @@ def log(text, array=None):
 class BatchNorm(KL.BatchNormalization):
     """Extends the Keras BatchNormalization class to allow a central place
     to make changes if needed.
-
     Batch normalization has a negative effect on training if batches are small
     so this layer is often frozen (via setting in Config class) and functions
     as linear layer.
@@ -70,13 +70,11 @@ class BatchNorm(KL.BatchNormalization):
 
 def compute_backbone_shapes(config, image_shape):
     """Computes the width and height of each stage of the backbone network.
-
     Returns:
         [N, (height, width)]. Where N is the number of stages
     """
     if callable(config.BACKBONE):
         return config.COMPUTE_BACKBONE_SHAPE(image_shape)
-
     # Currently supports ResNet only
     assert config.BACKBONE in ["resnet50", "resnet101"]
     return np.array(
@@ -412,7 +410,7 @@ class PyramidROIAlign(KE.Layer):
             # Crop and Resize
             # From Mask R-CNN paper: "We sample four regular locations, so
             # that we can evaluate either max or average pooling. In fact,
-            # interpolating only a single value at each bin center (without
+            # interpolating only a single value at each bin center (withoutBATCH_SIZE
             # pooling) is nearly as effective."
             #
             # Here we use the simplified approach of a single value per bin,
@@ -1792,6 +1790,7 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                     inputs.extend([batch_rpn_rois])
                     if detection_targets:
                         inputs.extend([batch_rois])
+                        inputs.extend([batch_rois])
                         # Keras requires that output and targets have the same number of dimensions
                         batch_mrcnn_class_ids = np.expand_dims(
                             batch_mrcnn_class_ids, -1)
@@ -1811,6 +1810,65 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
             error_count += 1
             if error_count > 5:
                 raise
+
+
+############################################################
+#  Custom classes and functions
+############################################################
+
+class ValidationEvaluator(Callback):
+    def __init__(self, val_dataset, validation_log_dir, config, period=5):
+        super(Callback, self).__init__()
+        self.period = period
+        self.batch_size = config.BATCH_SIZE
+        self.validation_data = []
+        self.validation_log_dir = validation_log_dir
+        self.val_writer = tf.summary.FileWriter(self.validation_log_dir)
+        val_gen = data_generator(val_dataset, config, shuffle=False, batch_size=config.BATCH_SIZE)
+        self.validation_data, _ = next(val_gen)
+        print( "Validation data length: ", len(self.validation_data ))
+    #
+    def on_epoch_end(self, epoch, logs={}):
+        print( "\nValidationEvaluator for epoch %d, batch size %d" % (epoch + 1, self.batch_size ) )
+        if (epoch + 1) % self.period == 0:
+            loss, rpn_class_loss, rpn_bbox_loss, class_loss, bbox_loss,  mask_loss = \
+                self.model.evaluate([self.validation_data[0], self.validation_data[1],
+                                     self.validation_data[2], self.validation_data[3],
+                                     self.validation_data[4], self.validation_data[5], self.validation_data[6] ],
+                                    batch_size= self.batch_size)
+            print('\nEpoch %d: loss: %.4f, class_loss: %.4f, mask_loss: %.4f, bbox_loss: %.4f, rpn_class_loss: %.4f, rpn_bbox_loss: %.4f\n' %
+                   (epoch + 1, loss, class_loss, mask_loss, bbox_loss, rpn_class_loss, rpn_bbox_loss))
+            loss_summary = tf.compat.v1.Summary()
+            loss_summary_value = loss_summary.value.add()
+            loss_summary_value.simple_value = loss
+            loss_summary_value.tag = 'loss'
+            self.val_writer.add_summary(loss_summary, epoch + 1)
+            class_loss_summary = tf.compat.v1.Summary()
+            class_loss_summary_value = class_loss_summary.value.add()
+            class_loss_summary_value.simple_value = class_loss
+            class_loss_summary_value.tag = 'class_loss'
+            self.val_writer.add_summary(class_loss_summary, epoch + 1)
+            mask_loss_summary = tf.compat.v1.Summary()
+            mask_loss_summary_value = mask_loss_summary.value.add()
+            mask_loss_summary_value.simple_value = mask_loss
+            mask_loss_summary_value.tag = 'mask_loss'
+            self.val_writer.add_summary(mask_loss_summary, epoch + 1)
+            bbox_loss_summary = tf.compat.v1.Summary()
+            bbox_loss_summary_value = bbox_loss_summary.value.add()
+            bbox_loss_summary_value.simple_value = bbox_loss
+            bbox_loss_summary_value.tag = 'bbox_loss'
+            self.val_writer.add_summary(bbox_loss_summary, epoch + 1)
+            rpn_class_loss_summary = tf.compat.v1.Summary()
+            rpn_class_loss_summary_value = rpn_class_loss_summary.value.add()
+            rpn_class_loss_summary_value.simple_value = rpn_class_loss
+            rpn_class_loss_summary_value.tag = 'rpn_class_loss'
+            self.val_writer.add_summary( rpn_class_loss_summary, epoch + 1)
+            rpn_bbox_loss_summary = tf.compat.v1.Summary()
+            rpn_bbox_loss_summary_value = rpn_bbox_loss_summary.value.add()
+            rpn_bbox_loss_summary_value.simple_value = rpn_bbox_loss
+            rpn_bbox_loss_summary_value.tag = 'rpn_bbox_loss'
+            self.val_writer.add_summary(rpn_bbox_loss_summary, epoch + 1)
+            self.val_writer.flush()
 
 
 ############################################################
@@ -2027,7 +2085,7 @@ class MaskRCNN():
                        mrcnn_class_logits, mrcnn_class, mrcnn_bbox, mrcnn_mask,
                        rpn_rois, output_rois,
                        rpn_class_loss, rpn_bbox_loss, class_loss, bbox_loss, mask_loss]
-            model = KM.Model(inputs, outputs, name='mask_rcnn')
+            model = KM.Model( inputs, outputs, name='mask_rcnn')
         else:
             # Network Heads
             # Proposal classifier and BBox regressor heads
@@ -2190,8 +2248,8 @@ class MaskRCNN():
             loss = (
                 tf.reduce_mean(layer.output, keepdims=True)
                 * self.config.LOSS_WEIGHTS.get(name, 1.))
-            #self.keras_model.metrics_tensors.append(loss) [jtk]
-            self.keras_model.add_metric(loss, name)
+            self.keras_model.metrics_tensors.append(loss)
+            #self.keras_model.add_metric(loss, name) [jtk]
 
     def set_trainable(self, layer_regex, keras_model=None, indent=0, verbose=1):
         """Sets model layers as trainable if their names match
@@ -2331,11 +2389,13 @@ class MaskRCNN():
             os.makedirs(self.log_dir)
 
         # Callbacks
+        validation_evaluator = ValidationEvaluator(val_dataset, self.log_dir, self.config, period=1)
         callbacks = [
             keras.callbacks.TensorBoard(log_dir=self.log_dir,
-                                        histogram_freq=0, write_graph=True, write_images=False),
+                                        histogram_freq=0, write_graph=False, write_images=False),
             keras.callbacks.ModelCheckpoint(self.checkpoint_path,
                                             verbose=0, save_weights_only=True),
+            validation_evaluator
         ]
 
         # Add custom callbacks to the list

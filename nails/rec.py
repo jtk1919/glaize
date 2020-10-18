@@ -12,16 +12,20 @@ import configparser
 import image_proc as ip
 
 CONFIG_FILE = "C:\\Apps\\glaize\\glaize_config.txt"
+if os.name == 'posix':
+    CONFIG_FILE = "/home/taxila/cfg/glaize_config.txt"
+
 config = configparser.ConfigParser()
 config.read(CONFIG_FILE)
 DATA_DIR = config['DEFAULT']['data_dir']
 
-IMAGES_DIR = DATA_DIR + 'images\\left_fingers\\'
-LEFT_THUMB_DIR = DATA_DIR + 'images\\left_thumb\\'
-RESULTS_DIR = DATA_DIR + 'results\\left_fingers\\'
-TEST_DIR = DATA_DIR + 'test\\'
+IMAGES_DIR = DATA_DIR + 'images/left_fingers/'
+LEFT_THUMB_DIR = DATA_DIR + 'images/left_thumb/'
+RESULTS_DIR = DATA_DIR + 'results/left_fingers/'
+TEST_DIR = DATA_DIR + 'test/'
 # IMAGES_DIR = "D:\\data\\fn\\"
 # RESULTS_DIR = "D:\\data\\results\\fake_nails\\"
+
 
 csvf = TEST_DIR + "rec.csv"
 
@@ -33,7 +37,8 @@ opt = parser.parse_args()
 
 ROOT_DIR = os.path.abspath("Mask_RCNN-master")
 
-sys.path.append(ROOT_DIR)
+#sys.path.append(ROOT_DIR)
+sys.path.insert( 0, ROOT_DIR)
 import mrcnn.model as modellib
 from mrcnn.config import Config
 from image import *
@@ -106,6 +111,7 @@ def masked_image(img, mask):
     for i in range(3):
         im[:, :, i][mask] = 0;
     return im
+
 
 
 # Create model object in inference mode.

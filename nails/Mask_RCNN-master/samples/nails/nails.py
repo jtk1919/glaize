@@ -61,17 +61,14 @@ class NailsConfig(Config):
     """
     # Give the configuration a recognizable name
     NAME = "nails"
-
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 2
-
+    GPU_COUNT = 2
+    IMAGES_PER_GPU = 1
     # Number of classes (including background)
     NUM_CLASSES = 1 + 2  # Background + nails + card
-
     # Number of training steps per epoch
     STEPS_PER_EPOCH = 100
-
     # Skip detections with < 90% confidence
     DETECTION_MIN_CONFIDENCE = 0.9
 
@@ -81,7 +78,7 @@ class NailsConfig(Config):
 ############################################################
 
 class NailsDataset(utils.Dataset):
-
+    #
     def load_nails(self, dataset_dir, subset):
         """Load a subset of the nails dataset.
         dataset_dir: Root directory of the dataset.
@@ -90,11 +87,9 @@ class NailsDataset(utils.Dataset):
         # Add classes.
         self.add_class("nails", 1, "nail")
         self.add_class("nails", 2, "card")
-
         # Train or validation dataset?
         assert subset in ["train", "val"]
         dataset_dir = os.path.join(dataset_dir, subset)
-
         # Load annotations
         # VGG Image Annotator (up to version 1.6) saves each image in the form:
         # { 'filename': '28503151_5b5b7ec140_b.jpg',
@@ -113,12 +108,10 @@ class NailsDataset(utils.Dataset):
         # Note: In VIA 2.0, regions was changed from a dict to a list.
         annotations = json.load(open(os.path.join(dataset_dir, "via_region_data.json")))
         annotations = list(annotations.values())  # don't need the dict keys
-
         # The VIA tool saves images in the JSON even if they don't have any
         # annotations. Skip unannotated images.
         annotations = [a for a in annotations if (len(a['regions']) == 2 or len(a['regions']) == 5)]
         annotations = [a for a in annotations if a['filename'][-4:]=='.jpg']
-
         # Add images
         for a in annotations:
             # Fix that regions don't have labels, just formatted as nail, nail, nail, nail, card
@@ -126,7 +119,6 @@ class NailsDataset(utils.Dataset):
             if not (len(a['regions']) == 2 or len(a['regions']) == 5):
                 print("Unexpected ({}, in {}) number of region, skipping...".format(len(a['regions']), a['filename']))
                 continue
-
             if len(a['regions']) == 2:
                 a['regions'][0]['shape_attributes']['name'] = 'nail'
                 a['regions'][1]['shape_attributes']['name'] = 'card'
@@ -153,14 +145,13 @@ class NailsDataset(utils.Dataset):
             image_path = os.path.join(dataset_dir, a['filename'])
             image = skimage.io.imread(image_path)
             height, width = image.shape[:2]
-
             self.add_image(
                 "nails",
                 image_id=a['filename'],  # use file name as a unique image id
                 path=image_path,
                 width=width, height=height,
                 polygons=polygons, labels=labels)
-
+    #
     def load_mask(self, image_id):
         """Generate instance masks for an image.
        Returns:
@@ -172,7 +163,6 @@ class NailsDataset(utils.Dataset):
         image_info = self.image_info[image_id]
         if image_info["source"] != "nails":
             return super(self.__class__, self).load_mask(image_id)
-
         # Convert polygons to a bitmap mask of shape
         # [height, width, instance_count]
         info = self.image_info[image_id]
@@ -182,7 +172,6 @@ class NailsDataset(utils.Dataset):
             # Get indexes of pixels inside the polygon and set them to 1
             rr, cc = skimage.draw.polygon(p['all_points_y'], p['all_points_x'])
             mask[rr, cc, i] = 1
-
         # Return mask, and array of class IDs of each instance.
         class_ids = np.zeros([mask.shape[-1]], dtype=np.int32)
         for i in range(len(info["labels"])):
@@ -191,7 +180,7 @@ class NailsDataset(utils.Dataset):
             if info["labels"][i] == 'card':
                 class_ids[i] = 2
         return mask.astype(np.bool), class_ids
-
+    #
     def image_reference(self, image_id):
         """Return the path of the image."""
         info = self.image_info[image_id]
@@ -207,12 +196,10 @@ def train(model):
     dataset_train = NailsDataset()
     dataset_train.load_nails(args.dataset, "train")
     dataset_train.prepare()
-
     # Validation dataset
     dataset_val = NailsDataset()
     dataset_val.load_nails(args.dataset, "val")
     dataset_val.prepare()
-
     # *** This training schedule is an example. Update to your needs ***
     # Since we're using a very small dataset, and starting from
     # COCO trained weights, we don't need to train too long. Also,
@@ -228,7 +215,6 @@ def color_splash(image, mask):
     """Apply color splash effect.
     image: RGB image [height, width, 3]
     mask: instance segmentation mask [height, width, instance count]
-
     Returns result image.
     """
     # Make a grayscale copy of the image. The grayscale copy still
@@ -246,7 +232,6 @@ def color_splash(image, mask):
 
 def detect_and_color_splash(model, image_path=None, video_path=None):
     assert image_path or video_path
-
     # Image or video?
     if image_path:
         # Run model detection and generate the color splash effect
@@ -267,13 +252,11 @@ def detect_and_color_splash(model, image_path=None, video_path=None):
         width = int(vcapture.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(vcapture.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = vcapture.get(cv2.CAP_PROP_FPS)
-
         # Define codec and create video writer
         file_name = "splash_{:%Y%m%dT%H%M%S}.avi".format(datetime.datetime.now())
         vwriter = cv2.VideoWriter(file_name,
                                   cv2.VideoWriter_fourcc(*'MJPG'),
                                   fps, (width, height))
-
         count = 0
         success = True
         while success:
