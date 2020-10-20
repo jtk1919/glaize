@@ -24,11 +24,12 @@ TEST_DIR = DATA_DIR + 'test\\'
 # RESULTS_DIR = "D:\\data\\results\\fake_nails\\"
 
 csvf = TEST_DIR + "rec.csv"
-
+errf = TEST_DIR + "err.csv"
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--model', type=int, default=0, help='model index, default 0')
 parser.add_argument('--image_name', type=str, default='test_image1.jpg', help='name of image')
-parser.add_argument('--save_images', type=str, default=False, help='whether or not to save images (default False)')
+#parser.add_argument('--save_images', type=boolean, default=False, help='whether or not to save images (default False)')
 opt = parser.parse_args()
 
 ROOT_DIR = os.path.abspath("Mask_RCNN-master")
@@ -38,9 +39,13 @@ import mrcnn.model as modellib
 from mrcnn.config import Config
 from image import *
 
-MODEL_DIR = os.path.join(ROOT_DIR, "logs")
+MODEL_DIR = "D:/data/models/"
 
-NAILS_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_nails_v1.h5")
+NAILS_MODEL = [ '0', '1', '2' ]
+NAILS_MODEL[0] = os.path.join( MODEL_DIR, "mask_rcnn_nails_v1.h5")
+NAILS_MODEL[1] = os.path.join( MODEL_DIR, "mask_rcnn_nails_t1.h5")
+NAILS_MODEL[2] = os.path.join( MODEL_DIR, "mask_rcnn_nails_0026_t2.h5")
+
 
 IMAGE_DIR = os.path.join(ROOT_DIR, "../nail_images")
 
@@ -111,7 +116,8 @@ def masked_image(img, mask):
 # Create model object in inference mode.
 model = modellib.MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=config)
 # Load weights trained on MS-NAILS
-model.load_weights(NAILS_MODEL_PATH, by_name=True)
+print( "Running inference with model ", NAILS_MODEL[ opt.model ], "\n" )
+model.load_weights( NAILS_MODEL[ opt.model ], by_name=True)
 class_names = ['BG', 'nail', 'card']
 orientation = 0
 
@@ -150,6 +156,7 @@ def main( img, fn, is_left = True ):
     if n_regions == 5:
         orientation, msk = ip.upright(msk)
     #
+    rtn = False
     if orientation == 0:
         if n_regions == 2:
             _ = cv2.imwrite(TEST_DIR + fn + "_lthumb.png", img1)
@@ -186,8 +193,10 @@ def main( img, fn, is_left = True ):
 
 ##-----------------------------------------
 c = 0
-with open( csvf, 'w', newline='') as csvfile:
+with open( csvf, 'w+', newline='') as csvfile:
+    errfile = open( errf, 'w+', newline='')
     writer = csv.writer(csvfile)
+    err_writer = csv.writer(errfile)
     files = glob.glob(IMAGES_DIR + "*")
     for f in files:
         c += 1
@@ -196,18 +205,34 @@ with open( csvf, 'w', newline='') as csvfile:
         #
         image = cv2.imread(f)
         img1 = image.copy()
+        orientation = 0
         success = main( img1, fn )
         if not success:
+            err_writer.writerow([f, thf, 'failed for fingers'])
+            errfile.flush()
             continue
         #
         lth = cv2.imread(thf)
+        # turn the thumb according to the corresponding fingers orientation
+        if orientation == 1:
+            lth = cv2.rotate(lth, cv2.ROTATE_90_CLOCKWISE)
+        elif orientation == 2 :
+            lth = cv2.rotate(lth, cv2.ROTATE_180)
+        elif orientation == 3:
+            lth = cv2.rotate(lth, cv2.ROTATE_90_COUNTERCLOCKWISE)
         try:
             print( "Thumb file size: ", lth.shape )
         except:
             print("The thumb file for left fingers [{}] does not exist at [{}]".format(f, lth))
+            err_writer.writerow([f, thf, 'thumb file does not exist'])
+            errfile.flush()
             continue
         success = main( lth, fn)
         if success:
             writer.writerow([ f, thf])
             csvfile.flush()
+        else:
+            err_writer.writerow([f, thf, 'failed for thumb'])
+            errfile.flush()
 
+errfile.close()

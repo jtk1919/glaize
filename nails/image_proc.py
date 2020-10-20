@@ -5,7 +5,6 @@ import imutils
 
 
 def upright( msk, is_left = True):
-    return 0, msk
     orientation = 0
     rc, msk1 = cv2.threshold(msk, 0.5, 1, cv2.THRESH_BINARY)
     hsum = np.sum(msk1, axis=0)
