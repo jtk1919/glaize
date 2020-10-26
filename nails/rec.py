@@ -115,6 +115,25 @@ def masked_image(img, mask):
         im[:, :, i][mask] = 0;
     return im
 
+def denoise( bmask ):
+    msk = np.zeros( bmask.shape[:2])
+    msk[bmask] = 255
+    contours, _ = cv2.findContours(msk, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    if len(contours) == 1:
+        contours = contours[0]
+    else:
+        max_area = 0
+        max_index = 0
+        for i in range(len(contours)):
+            area = cv2.contourArea(contours[i])
+            if (area > max_area):
+                max_area = area
+                max_index = i
+        contours = contours[max_index]
+    msk = np.zeros(bmask.shape[:2])
+    cv2.fillPoly(msk, pts=[contours], color=(255, 255, 255))
+    return ( msk > 0)
+
 
 
 # Create model object in inference mode.
@@ -153,9 +172,9 @@ def main( img, fn, is_left = True ):
     msk = np.zeros(img.shape[:2])
     for i in range(n_regions):
         if i != cc_i:
-            msk[r['masks'][:, :, i]] = 255
-            img1 = masked_image(img1, r['masks'][:, :, i])
-    #
+            bmask = denoise(r['masks'][:, :, i])
+            msk[bmask] = 255
+            img1 = masked_image(img1, bmask )
     if n_regions == 5:
         orientation, msk = ip.upright(msk)
     #
