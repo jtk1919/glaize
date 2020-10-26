@@ -1,6 +1,6 @@
 Nails training:
 
-python nails.py train --dataset=/media/taxila/DATA/data/images/ -weights=../../mask_rcnn_nails_v1.h5
+python nails.py train --dataset=/media/taxila/DATA/data/images/ --weights=../../mask_rcnn_nails_v1.h5
 
 edit loss weights in config:
 LOSS_WEIGHTS                   {'rpn_class_loss': 1.0, 'rpn_bbox_loss': 1.0, 'mrcnn_class_loss': 1.0, 'mrcnn_bbox_loss': 1.0, 'mrcnn_mask_loss': 1.0}

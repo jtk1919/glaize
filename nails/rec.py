@@ -31,11 +31,16 @@ csvf = TEST_DIR + "rec.csv"
 
 
 parser = argparse.ArgumentParser()
+parser.add_arguemnt('--model', type=str, default='001', help="model id in the training run")
 parser.add_argument('--image_name', type=str, default='test_image1.jpg', help='name of image')
 parser.add_argument('--save_images', type=str, default=False, help='whether or not to save images (default False)')
 opt = parser.parse_args()
 
+
 ROOT_DIR = os.path.abspath("Mask_RCNN-master")
+
+NAILS_MODEL_PATH = os.path.join( ROOT_DIR, "nails20201023T1913", "mask_rcnn_nails_{}.h5")
+
 
 #sys.path.append(ROOT_DIR)
 sys.path.insert( 0, ROOT_DIR)
@@ -44,8 +49,6 @@ from mrcnn.config import Config
 from image import *
 
 MODEL_DIR = os.path.join(ROOT_DIR, "logs")
-
-NAILS_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_nails_v1.h5")
 
 IMAGE_DIR = os.path.join(ROOT_DIR, "../nail_images")
 

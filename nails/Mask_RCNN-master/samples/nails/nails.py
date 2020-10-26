@@ -63,14 +63,18 @@ class NailsConfig(Config):
     NAME = "nails"
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    GPU_COUNT = 2
+    GPU_COUNT = 1
     IMAGES_PER_GPU = 1
     # Number of classes (including background)
     NUM_CLASSES = 1 + 2  # Background + nails + card
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 100
+    STEPS_PER_EPOCH = 200
     # Skip detections with < 90% confidence
     DETECTION_MIN_CONFIDENCE = 0.9
+    # loss weights
+    LOSS_WEIGHTS={'rpn_class_loss': 0.80, 'rpn_bbox_loss': 0.65,
+                  'mrcnn_class_loss': 1.0, 'mrcnn_bbox_loss': 0.75,
+                  'mrcnn_mask_loss': 1.0 }
 
 
 ############################################################
@@ -190,11 +194,13 @@ class NailsDataset(utils.Dataset):
             super(self.__class__, self).image_reference(image_id)
 
 
+# dataset_train.load_nails( "/media/taxila/DATA/data/images", "train")
 def train(model):
     """Train the model."""
     # Training dataset.
     dataset_train = NailsDataset()
     dataset_train.load_nails(args.dataset, "train")
+    dataset_train.load_nails(args.dataset, "val")
     dataset_train.prepare()
     # Validation dataset
     dataset_val = NailsDataset()
@@ -204,11 +210,12 @@ def train(model):
     # Since we're using a very small dataset, and starting from
     # COCO trained weights, we don't need to train too long. Also,
     # no need to train all layers, just the heads should do it.
-    print("Training network heads")
+    ## print("Training network heads")
+    print("Training network layers ResNet 5, and heads")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
-                epochs=30,
-                layers='heads')
+                epochs=1000,
+                layers="5+")
 
 
 def color_splash(image, mask):
@@ -284,6 +291,8 @@ def detect_and_color_splash(model, image_path=None, video_path=None):
 ############################################################
 
 if __name__ == '__main__':
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
     import argparse
 
     # Parse command line arguments
