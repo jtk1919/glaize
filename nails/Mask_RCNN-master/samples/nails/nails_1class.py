@@ -33,6 +33,7 @@ import json
 import datetime
 import numpy as np
 import skimage.draw
+import tensorflow as tf
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("../../")
@@ -66,14 +67,14 @@ class NailsConfig(Config):
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
     # Number of classes (including background)
-    NUM_CLASSES = 1 + 2  # Background + nails + card
+    NUM_CLASSES = 1 + 1  # Background + nails [jtk] no card
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 200
+    STEPS_PER_EPOCH = 240
     # Skip detections with < 90% confidence
     DETECTION_MIN_CONFIDENCE = 0.9
     # loss weights
-    LOSS_WEIGHTS={'rpn_class_loss': 0.80, 'rpn_bbox_loss': 0.65,
-                  'mrcnn_class_loss': 1.0, 'mrcnn_bbox_loss': 0.75,
+    LOSS_WEIGHTS={'rpn_class_loss': 0.9, 'rpn_bbox_loss': 0.8,
+                  'mrcnn_class_loss': 1.0, 'mrcnn_bbox_loss': 0.8,
                   'mrcnn_mask_loss': 1.0 }
 
 
@@ -90,9 +91,9 @@ class NailsDataset(utils.Dataset):
         """
         # Add classes.
         self.add_class("nails", 1, "nail")
-        self.add_class("nails", 2, "card")
+        ##self.add_class("nails", 2, "card")  ## only nails [jtk]
         # Train or validation dataset?
-        assert subset in ["train", "val"]
+        assert subset in ["train", "val", "left_fingers", "left_thumb", "Right fingers", "Extra pics"]
         dataset_dir = os.path.join(dataset_dir, subset)
         # Load annotations
         # VGG Image Annotator (up to version 1.6) saves each image in the form:
@@ -115,7 +116,7 @@ class NailsDataset(utils.Dataset):
         # The VIA tool saves images in the JSON even if they don't have any
         # annotations. Skip unannotated images.
         annotations = [a for a in annotations if (len(a['regions']) == 2 or len(a['regions']) == 5)]
-        annotations = [a for a in annotations if a['filename'][-4:]=='.jpg']
+        annotations = [a for a in annotations if a['filename'][-4:] in ['.jpg', '.jpeg', '.JPG', '.png', '.PNG'] ]
         # Add images
         for a in annotations:
             # Fix that regions don't have labels, just formatted as nail, nail, nail, nail, card
@@ -125,13 +126,17 @@ class NailsDataset(utils.Dataset):
                 continue
             if len(a['regions']) == 2:
                 a['regions'][0]['shape_attributes']['name'] = 'nail'
-                a['regions'][1]['shape_attributes']['name'] = 'card'
+                ## a['regions'][1]['shape_attributes']['name'] = 'card' ## [jtk] leave out card
+                del a['regions'][1]
+                assert len(a['regions']) == 1
             else:
                 a['regions'][0]['shape_attributes']['name'] = 'nail'
                 a['regions'][1]['shape_attributes']['name'] = 'nail'
                 a['regions'][2]['shape_attributes']['name'] = 'nail'
                 a['regions'][3]['shape_attributes']['name'] = 'nail'
-                a['regions'][4]['shape_attributes']['name'] = 'card'
+                # a['regions'][4]['shape_attributes']['name'] = 'card' ## [jtk] leave out card
+                del a['regions'][4]
+                assert len(a['regions']) == 4
                 #labels = ['nail', 'nail', 'nail', 'nail', 'card']
             # Get the x, y coordinaets of points of the polygons that make up
             # the outline of each object instance. These are stores in the
@@ -195,12 +200,14 @@ class NailsDataset(utils.Dataset):
 
 
 # dataset_train.load_nails( "/media/taxila/DATA/data/images", "train")
+# dataset_train.load_nails( "/media/taxila/DATA/data/images", "Extra pics")
 def train(model):
     """Train the model."""
     # Training dataset.
     dataset_train = NailsDataset()
     dataset_train.load_nails(args.dataset, "train")
-    dataset_train.load_nails(args.dataset, "val")
+    dataset_train.load_nails(args.dataset, "Extra pics")
+    dataset_train.load_nails(args.dataset, "Right fingers")
     dataset_train.prepare()
     # Validation dataset
     dataset_val = NailsDataset()
@@ -210,7 +217,7 @@ def train(model):
     # Since we're using a very small dataset, and starting from
     # COCO trained weights, we don't need to train too long. Also,
     # no need to train all layers, just the heads should do it.
-    ## print("Training network heads")
+    #print("Training network heads")  ## [jtk]
     print("Training network layers ResNet 5, and heads")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
@@ -291,8 +298,6 @@ def detect_and_color_splash(model, image_path=None, video_path=None):
 ############################################################
 
 if __name__ == '__main__':
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-
     import argparse
 
     # Parse command line arguments
@@ -374,7 +379,9 @@ if __name__ == '__main__':
             "mrcnn_class_logits", "mrcnn_bbox_fc",
             "mrcnn_bbox", "mrcnn_mask"])
     else:
-        model.load_weights(weights_path, by_name=True)
+        model.load_weights(weights_path, by_name=True, exclude=[
+            "mrcnn_class_logits", "mrcnn_bbox_fc",
+            "mrcnn_bbox", "mrcnn_mask"])
 
     # Train or evaluate
     if args.command == "train":

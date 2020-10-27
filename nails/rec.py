@@ -12,16 +12,20 @@ import configparser
 import image_proc as ip
 
 CONFIG_FILE = "C:\\Apps\\glaize\\glaize_config.txt"
+if os.name == 'posix':
+    CONFIG_FILE = "/home/taxila/cfg/glaize_config.txt"
+
 config = configparser.ConfigParser()
 config.read(CONFIG_FILE)
 DATA_DIR = config['DEFAULT']['data_dir']
 
-IMAGES_DIR = DATA_DIR + 'images\\left_fingers\\'
-LEFT_THUMB_DIR = DATA_DIR + 'images\\left_thumb\\'
-RESULTS_DIR = DATA_DIR + 'results\\left_fingers\\'
-TEST_DIR = DATA_DIR + 'test\\'
+IMAGES_DIR = DATA_DIR + 'images/left_fingers/'
+LEFT_THUMB_DIR = DATA_DIR + 'images/left_thumb/'
+RESULTS_DIR = DATA_DIR + 'results/left_fingers/'
+TEST_DIR = DATA_DIR + 'test/'
 # IMAGES_DIR = "D:\\data\\fn\\"
 # RESULTS_DIR = "D:\\data\\results\\fake_nails\\"
+
 
 csvf = TEST_DIR + "rec.csv"
 errf = TEST_DIR + "err.csv"
@@ -32,9 +36,14 @@ parser.add_argument('--image_name', type=str, default='test_image1.jpg', help='n
 #parser.add_argument('--save_images', type=boolean, default=False, help='whether or not to save images (default False)')
 opt = parser.parse_args()
 
+
 ROOT_DIR = os.path.abspath("Mask_RCNN-master")
 
-sys.path.append(ROOT_DIR)
+NAILS_MODEL_PATH = os.path.join( ROOT_DIR, "nails20201023T1913", "mask_rcnn_nails_{}.h5")
+
+
+#sys.path.append(ROOT_DIR)
+sys.path.insert( 0, ROOT_DIR)
 import mrcnn.model as modellib
 from mrcnn.config import Config
 from image import *
@@ -45,7 +54,6 @@ NAILS_MODEL = [ '0', '1', '2' ]
 NAILS_MODEL[0] = os.path.join( MODEL_DIR, "mask_rcnn_nails_v1.h5")
 NAILS_MODEL[1] = os.path.join( MODEL_DIR, "mask_rcnn_nails_t1.h5")
 NAILS_MODEL[2] = os.path.join( MODEL_DIR, "mask_rcnn_nails_0026_t2.h5")
-
 
 IMAGE_DIR = os.path.join(ROOT_DIR, "../nail_images")
 
@@ -113,6 +121,27 @@ def masked_image(img, mask):
     return im
 
 
+def denoise( bmask ):
+    msk = np.zeros( bmask.shape[:2])
+    msk[bmask] = 255
+    contours, _ = cv2.findContours(msk, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    if len(contours) == 1:
+        contours = contours[0]
+    else:
+        max_area = 0
+        max_index = 0
+        for i in range(len(contours)):
+            area = cv2.contourArea(contours[i])
+            if (area > max_area):
+                max_area = area
+                max_index = i
+        contours = contours[max_index]
+    msk = np.zeros(bmask.shape[:2])
+    cv2.fillPoly(msk, pts=[contours], color=(255, 255, 255))
+    return ( msk > 0)
+
+
+
 # Create model object in inference mode.
 model = modellib.MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=config)
 # Load weights trained on MS-NAILS
@@ -150,9 +179,9 @@ def main( img, fn, is_left = True ):
     msk = np.zeros(img.shape[:2])
     for i in range(n_regions):
         if i != cc_i:
-            msk[r['masks'][:, :, i]] = 255
-            img1 = masked_image(img1, r['masks'][:, :, i])
-    #
+            bmask = denoise(r['masks'][:, :, i])
+            msk[bmask] = 255
+            img1 = masked_image(img1, bmask )
     if n_regions == 5:
         orientation, msk = ip.upright(msk)
     #

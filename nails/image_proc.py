@@ -126,6 +126,20 @@ def clip( msk1, doWideClip = False ):
         crp = pad( crp )
     return crp
 
+def clip1( msk1, doWideClip = False ):
+    contours, _ = cv2.findContours(img, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    if len(contours) == 1:
+        contours = contours[0]
+    else:
+        max_area = 0
+        max_index = 0
+        for i in range(len(contours)):
+            area = cv2.contourArea(contours[i])
+            if (area > max_area):
+                max_area = area
+                max_index = i
+        contours = contours[max_index]
+
 
 def drawAxis(img, p_, q_, colour, scale):
     p = list(p_)
