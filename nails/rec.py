@@ -57,6 +57,11 @@ NAILS_MODEL[2] = os.path.join( MODEL_DIR, "mask_rcnn_nails_0026_t2.h5")
 
 IMAGE_DIR = os.path.join(ROOT_DIR, "../nail_images")
 
+try:
+    os.mkdir(TEST_DIR)
+except:
+    print("{} exists".format(TEST_DIR))
+
 
 class NailsConfig(Config):
     """
@@ -122,7 +127,7 @@ def masked_image(img, mask):
 
 
 def denoise( bmask ):
-    msk = np.zeros( bmask.shape[:2])
+    msk = np.zeros( bmask.shape[:2], dtype="uint8")
     msk[bmask] = 255
     contours, _ = cv2.findContours(msk, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     if len(contours) == 1:
@@ -136,8 +141,8 @@ def denoise( bmask ):
                 max_area = area
                 max_index = i
         contours = contours[max_index]
-    msk = np.zeros(bmask.shape[:2])
-    cv2.fillPoly(msk, pts=[contours], color=(255, 255, 255))
+    msk = np.zeros(bmask.shape[:2], dtype="uint8")
+    msk = cv2.fillPoly(msk, [contours], 255)
     return ( msk > 0)
 
 
@@ -175,7 +180,7 @@ def main( img, fn, is_left = True ):
             max_area = area
             cc_i = i
     print( "credit card index: ", cc_i)
-    #
+        #
     msk = np.zeros(img.shape[:2])
     for i in range(n_regions):
         if i != cc_i:
@@ -184,8 +189,8 @@ def main( img, fn, is_left = True ):
             img1 = masked_image(img1, bmask )
     if n_regions == 5:
         orientation, msk = ip.upright(msk)
-    #
-    rtn = False
+        #
+        rtn = False
     if orientation == 0:
         if n_regions == 2:
             _ = cv2.imwrite(TEST_DIR + fn + "_lthumb.png", img1)
