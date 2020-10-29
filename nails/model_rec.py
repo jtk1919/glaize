@@ -194,6 +194,7 @@ class Combi_Model_Set:
                 min_idx = i
             print( "Full-cross Combi distance from hand to combi {} is {}".format(i+1, dist) )
         print( "Fingers classified to combi {} with distance {}".format( min_idx+1, dist_vec[min_idx]) )
+        return min_idx
 
 
 class Ref_Thumb_Models:
@@ -248,7 +249,7 @@ flist = [ "D:\\data\\results\\csv\\fingers 1.csv",
 
 for f in flist:
     hm = Hand_Model(f)
-    cm_set.geometric_hand_distance(hm, False)
+    combi = cm_set.geometric_hand_distance(hm, False)
     print(f)
     print()
 

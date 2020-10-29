@@ -22,6 +22,7 @@
 using namespace std;
 using namespace cv;
 
+static void startScreen(size_t monitorHeight, size_t monitorWidth);
 static vector<string> getFiles();
 void mouse_callback(int  event, int  x, int  y, int  flag, void* param);
 static void processImageScaling();
@@ -55,6 +56,9 @@ double conversion_rate[] = { 1.0, 1.0, 1.0, 1.0 };
 
 bool process_next = true;
 size_t cc = 0;
+
+
+
 
 int main(size_t monitorHeight, size_t monitorWidth )
 {
@@ -193,6 +197,63 @@ int main(size_t monitorHeight, size_t monitorWidth )
 
     cv:destroyWindow(WIN);
 }
+
+
+
+void mouse_callback1(int  event, int  x, int  y, int  flag, void* param)
+{
+    if (event == EVENT_LBUTTONDOWN)
+    {
+
+        if (exit_btn.contains(Point(x, y)))
+        {
+            redo = false;
+            cv::destroyAllWindows();
+            exit(0);
+        }
+        else if (redo_btn.contains(Point(x, y)))
+        {
+            redo = true;
+            mcount = 0;
+            cv::Rect rc = cv::Rect(280, 350, 1000, 120);
+            canvas(rc) = Vec3b(0, 0, 0);
+            cv::putText(canvas, "Re-marking this image. Press any key to proceed.",
+                Size(300, 400), font, 1, Scalar(0, 255, 0), 1);
+            cv::imshow(WIN, canvas);
+        }
+        else if (okay_btn.contains(Point(x, y)))
+        {
+            redo = false;
+            mcount = 0;
+            cv::Rect rc = cv::Rect(280, 350, 1000, 120);
+            canvas(rc) = Vec3b(0, 0, 0);
+            cv::putText(canvas, "Progressing image. Press any key to proceed.",
+                Size(300, 400), font, 1, Scalar(0, 255, 0), 1);
+            cv::imshow(WIN, canvas);
+
+        }
+        else if (next_hand_btn.contains(Point(x, y)))
+        {
+            redo = false;
+            mcount = 0;
+            cv::Rect rc = cv::Rect(280, 350, 1000, 120);
+            canvas(rc) = Vec3b(0, 0, 0);
+            cv::putText(canvas, "Proceeding to next customer hand. Press any key.",
+                Size(400, 400), font, 1, Scalar(0, 255, 0), 1);
+            cv::imshow(WIN, canvas);
+        }
+    }
+}
+
+void startScreen(size_t monitorHeight, size_t monitorWidth)
+{
+    cv::namedWindow(WIN, cv::WINDOW_GUI_NORMAL);
+    cv::moveWindow(WIN, 0, 0);
+    setMouseCallback(WIN, mouse_callback1);
+
+}
+
+
 
 size_t fingerFileIndex(size_t finger_id)
 {

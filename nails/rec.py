@@ -91,18 +91,6 @@ config = InferenceConfig()
 ##config.display()
 
 
-def read_heic(path):
-    with open(path, 'rb') as file:
-        im = pyheif.read_heif(file)
-        for metadata in im.metadata or []:
-            if metadata['type'] == 'Exif':
-                fstream = io.BytesIO(metadata['data'][6:])
-    pi = PIL.Image.open(fstream)
-    pi.save("temp.PNG", "PNG")
-    im = cv2.imread("temp.PNH")
-    return im
-
-
 def get_fnames_from_path(fpath):
     path, fname = os.path.split(fpath)
     fn, ext = fname.split(".")
@@ -110,7 +98,7 @@ def get_fnames_from_path(fpath):
     x = x.replace('Left Fingers', 'Left Thumb')
     x = x.replace('Left fingers', 'Left thumb')
     x = x.replace('left fingers', 'left thumb')
-    return fn, x
+    return fn, x, ext
 
 
 def area_from_mask(mask):
@@ -234,7 +222,10 @@ with open( csvf, 'w+', newline='') as csvfile:
     files = glob.glob(IMAGES_DIR + "*")
     for f in files:
         c += 1
-        fn, thf = get_fnames_from_path(f)
+        fn, thf, ext = get_fnames_from_path(f)
+        if not ( ext in ['jpg', 'jpeg', 'JPG', 'JPEG', 'png', 'PNG'] ):
+            print( "File extension {} not accepted. Please provide as JPEG or PNG images. File: {}".format(ext, fn))
+            continue
         print( "Running recognition on left hand: ", fn )
         #
         image = cv2.imread(f)
