@@ -87,19 +87,16 @@ string ImageIO::getFingerMask(uint8_t fid) const
 
 string ImageIO::getCsvFile() const
 {
-	string temp(_working_fn);
-	temp.replace( 0, 5, "");
-
-	string f = cfg.results_csv_dir + temp + ".csv";
+	string f = cfg.results_csv_dir + _working_fn + ".csv";
 	return f;
 }
 
 
-void ImageIO::output_csv(vector< pair< vector<float>, vector<float> > >& nail_metrics)
+void ImageIO::output_csv(vector< pair< vector<float>, vector<float> > >& nail_metrics, size_t cc[])
 {
 	string csvf = getCsvFile();
 
-	cout << "outputting to: " << csvf;
+	cout << "outputting to: " << csvf << endl;
 
 	ofstream ofs(csvf.c_str(), ios_base::out);
 	ofs << std::fixed;
@@ -122,5 +119,6 @@ void ImageIO::output_csv(vector< pair< vector<float>, vector<float> > >& nail_me
 		}
 		ofs << endl;
 	}
+	ofs << cc[0] << "," << cc[1] << endl;
 }
 

@@ -18,6 +18,7 @@ LEFT_THUMB_DIR = DATA_DIR + 'ref_nails\\'
 RESULTS_DIR = DATA_DIR + 'results\ref_fingers\\'
 TEST_DIR = DATA_DIR + 'testref\\'
 MODEL_DATA_DIR = TEST_DIR
+CSV_DIR = DATA_DIR + "results\\csv\\"
 
 REF_FINGERS = [ 'Left fingers combi 1', 'Left fingers combi 2 and 3',
                 'Left fingers combi 4', 'Left fingers combi 5 and 7',
@@ -60,8 +61,7 @@ NUM_CROSS_SEC = [ 20, 24, 24, 24, 30 ]
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--image_name', type=str, default='test_image1.jpg', help='name of image')
-parser.add_argument('--save_images', type=str, default=False, help='whether or not to save images (default False)')
+parser.add_argument('--image', type=str, default='test', help='name of image')
 opt = parser.parse_args()
 
 
@@ -182,19 +182,15 @@ class Combi_Model_Set:
         #
     def geometric_hand_distance(self, hand_model, fin_only=True ):
         hv = hand_model.get_full_cross_combivec( fin_only)
-        min_dist = 9999
-        min_idx = 0
         dist_vec = []
         for i in range(NUM_COMBI):
             cv = self.combi_models[i].get_full_cross_combivec( fin_only )
             dist = distance.euclidean( hv, cv)
-            dist_vec.append(dist)
-            if dist < min_dist:
-                min_dist = dist
-                min_idx = i
+            dist_vec.append([i, dist])
             print( "Full-cross Combi distance from hand to combi {} is {}".format(i+1, dist) )
-        print( "Fingers classified to combi {} with distance {}".format( min_idx+1, dist_vec[min_idx]) )
-        return min_idx
+        dist_vec.sort(key=lambda x: x[1])
+        print( "Fingers classified to combi {} with distance {}".format( dist_vec[0][0]+1, dist_vec[0][1]) )
+        return dist_vec[:3]
 
 
 class Ref_Thumb_Models:
@@ -237,22 +233,37 @@ class Hand_Model:
 
 cm_set = Combi_Model_Set( "D:\\data\\testref\\" )
 
-flist = [ "D:\\data\\results\\csv\\fingers 1.csv",
-          'D:\\data\\results\\csv\\fingers A.csv',
-          'D:\\data\\results\\csv\\fingers B.csv',
-          'D:\\data\\results\\csv\\fingers D.csv',
-          'D:\\data\\results\\csv\\fingers E.csv',
-          'D:\\data\\results\\csv\\fingers F.csv'
+flist = [ "D:\\data\\test_fake_nail\\Left fingers 1.csv",
+          'D:\\data\\test_fake_nail\\Left fingers A.csv',
+          'D:\\data\\test_fake_nail\\Left fingers B.csv',
+          'D:\\data\\test_fake_nail\\Left fingers D.csv',
+          'D:\\data\\test_fake_nail\\Left fingers E.csv',
+          'D:\\data\\test_fake_nail\\Left fingers F.csv'
           ]
 
 # backed up code
 
-for f in flist:
+if opt.image in ['ALL', 'all']:
+    flist = glob.glob( CSV_DIR + "*.csv")
+    for f in flist:
+        hm = Hand_Model(f)
+        combi = cm_set.geometric_hand_distance(hm, False)
+        print( combi )
+        print(f)
+        print()
+elif opt.image in ['TEST', 'test']:
+    for f in flist:
+        hm = Hand_Model(f)
+        combi = cm_set.geometric_hand_distance(hm, False)
+        print( combi )
+        print(f)
+        print()
+else:
+    f = opt.image
     hm = Hand_Model(f)
     combi = cm_set.geometric_hand_distance(hm, False)
+    print( combi )
     print(f)
     print()
-
-
 
 

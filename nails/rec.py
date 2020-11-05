@@ -22,7 +22,7 @@ DATA_DIR = config['DEFAULT']['data_dir']
 IMAGES_DIR = DATA_DIR + 'images/left_fingers/'
 LEFT_THUMB_DIR = DATA_DIR + 'images/left_thumb/'
 RESULTS_DIR = DATA_DIR + 'results/left_fingers/'
-TEST_DIR = DATA_DIR + 'test/'
+TEST_DIR = DATA_DIR + 'test\\'
 # IMAGES_DIR = "D:\\data\\fn\\"
 # RESULTS_DIR = "D:\\data\\results\\fake_nails\\"
 
@@ -118,9 +118,8 @@ def denoise( bmask ):
     msk = np.zeros( bmask.shape[:2], dtype="uint8")
     msk[bmask] = 255
     contours, _ = cv2.findContours(msk, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-    if len(contours) == 1:
-        contours = contours[0]
-    else:
+    contour = contours[0]
+    if len(contours) > 1:
         max_area = 0
         max_index = 0
         for i in range(len(contours)):
@@ -128,10 +127,11 @@ def denoise( bmask ):
             if (area > max_area):
                 max_area = area
                 max_index = i
-        contours = contours[max_index]
-    msk = np.zeros(bmask.shape[:2], dtype="uint8")
-    msk = cv2.fillPoly(msk, [contours], 255)
-    return ( msk > 0)
+        contour = contours[max_index]
+    hull = cv2.convexHull(contour, False)
+    mask = np.zeros(bmask.shape[:2], np.uint8)
+    mask = cv2.drawContours(mask, [hull], 0, 255, -1, 8)
+    return ( mask > 0)
 
 
 
@@ -160,7 +160,7 @@ def main( img, fn, is_left = True ):
     cc_i = 0
     max_area = 0
     areas = [0] * n_regions
-    im2d = np.ones(img.shape[:2])
+    im2d = np.ones(img.shape[:2], np.uint8)
     for i in range(n_regions):
         area = np.sum(im2d[r['masks'][:, :, i]])
         areas[i] = area
@@ -169,7 +169,7 @@ def main( img, fn, is_left = True ):
             cc_i = i
     print( "credit card index: ", cc_i)
         #
-    msk = np.zeros(img.shape[:2])
+    msk = np.zeros(img.shape[:2], np.uint8)
     for i in range(n_regions):
         if i != cc_i:
             bmask = denoise(r['masks'][:, :, i])
@@ -231,8 +231,13 @@ with open( csvf, 'w+', newline='') as csvfile:
         image = cv2.imread(f)
         img1 = image.copy()
         orientation = 0
-        success = main( img1, fn )
-        if not success:
+        try:
+            success = main( img1, fn )
+            if not success:
+                err_writer.writerow([f, thf, 'failed for fingers'])
+                errfile.flush()
+                continue
+        except:
             err_writer.writerow([f, thf, 'failed for fingers'])
             errfile.flush()
             continue
@@ -252,12 +257,20 @@ with open( csvf, 'w+', newline='') as csvfile:
             err_writer.writerow([f, thf, 'thumb file does not exist'])
             errfile.flush()
             continue
-        success = main( lth, fn)
-        if success:
-            writer.writerow([ f, thf])
-            csvfile.flush()
-        else:
-            err_writer.writerow([f, thf, 'failed for thumb'])
+        try:
+            success = main( lth, fn)
+            if success:
+                writer.writerow([ f, thf])
+                csvfile.flush()
+            else:
+                err_writer.writerow([f, thf, 'failed for thumb'])
+                errfile.flush()
+        except:
+            err_writer.writerow([f, thf, 'failed for fingers'])
             errfile.flush()
 
 errfile.close()
+print( "\nRCNN Recognition failed for the following hand images:")
+_ = os.system( "type {}".format( errf ) )
+print( "\nRCNN Recognition succeeded for the following hand images:")
+_ = os.system( "type {}".format( csvf ) )

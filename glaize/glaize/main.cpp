@@ -31,8 +31,7 @@ static float angle2Lines(cv::Point l1p1, cv::Point l1p2, cv::Point l2p1, cv::Poi
 static cv::Mat get_finger(size_t idx, size_t xpos);
 static void clear_metrics();
 
-static string WIN(WIN_DEF);
-
+size_t pixels_per_mm;
 vector< pair< vector<float>, vector<float> > >  nail_metrics( GL_NUM_FINGERS, pair< vector<float>, vector<float> >() );
 
 int font = cv::FONT_HERSHEY_COMPLEX;
@@ -58,8 +57,6 @@ bool process_next = true;
 size_t cc = 0;
 
 
-
-
 int main(size_t monitorHeight, size_t monitorWidth )
 {
     cout << "Screen size: " << monitorWidth << " x " <<  monitorHeight  << endl;
@@ -83,7 +80,15 @@ int main(size_t monitorHeight, size_t monitorWidth )
             if (!redo)
             {
                 current_finger_image_idx = j;
-                fn = (j == 0) ? imgFiles.getLeftFingerF() : imgFiles.getLeftThumbF();
+                if (j == 0)
+                {
+                    fn = imgFiles.getLeftFingerF();
+                    cout << "\nCross sections for: " << fn << endl;
+                }
+                else
+                {
+                    fn = imgFiles.getLeftThumbF();
+                }
                 img = cv::imread(fn);
                 redo = false;
             }
@@ -100,10 +105,9 @@ int main(size_t monitorHeight, size_t monitorWidth )
                 continue;  // skip this one and start running for the next
             }
 
-            WIN = fn;
-            cv::namedWindow(WIN, cv::WINDOW_GUI_NORMAL);
-            cv::moveWindow(WIN, 0, 0);
-            setMouseCallback(WIN, mouse_callback);
+            cv::namedWindow(WIN_DEF, cv::WINDOW_GUI_NORMAL);
+            cv::moveWindow(WIN_DEF, 0, 0);
+            setMouseCallback(WIN_DEF, mouse_callback);
 
             canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
 
@@ -130,7 +134,7 @@ int main(size_t monitorHeight, size_t monitorWidth )
             conversion_rate[j] /= c;
 
             cv::resize(img, img1, cv::Size(cc, rr));
-            cv::resizeWindow(WIN, Size(monitorWidth - 4, monitorHeight - 4));
+            cv::resizeWindow(WIN_DEF, Size(monitorWidth - 4, monitorHeight - 4));
             cout << cc << " x " << rr << endl;
 
             mcount = 0;
@@ -145,7 +149,7 @@ int main(size_t monitorHeight, size_t monitorWidth )
             putText(canvas(exit_btn), "Exit Program",
                 Point((int)(exit_btn.width * 0.2), (int)(exit_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
 
-            cv::imshow(WIN, canvas);
+            cv::imshow(WIN_DEF, canvas);
             cv::waitKey(0);
 
         }
@@ -188,14 +192,14 @@ int main(size_t monitorHeight, size_t monitorWidth )
                 cout << "L Finger: " << k << " size ( r, c ) : ( " << lf.rows << ", " << lf.cols << " )" << endl;
                 lf.copyTo(canvas(Rect(200 * k + 190, 400 - lf.rows, lf.cols, lf.rows)));
             }
-            imgFiles.output_csv(nail_metrics );
+            imgFiles.output_csv(nail_metrics, cc_length );
 
-            cv::imshow(WIN, canvas);
+            cv::imshow(WIN_DEF, canvas);
             cv::waitKey(0);
         }
     }
 
-    cv:destroyWindow(WIN);
+    cv:destroyWindow(WIN_DEF);
 }
 
 
@@ -219,7 +223,7 @@ void mouse_callback1(int  event, int  x, int  y, int  flag, void* param)
             canvas(rc) = Vec3b(0, 0, 0);
             cv::putText(canvas, "Re-marking this image. Press any key to proceed.",
                 Size(300, 400), font, 1, Scalar(0, 255, 0), 1);
-            cv::imshow(WIN, canvas);
+            cv::imshow(WIN_DEF, canvas);
         }
         else if (okay_btn.contains(Point(x, y)))
         {
@@ -229,7 +233,7 @@ void mouse_callback1(int  event, int  x, int  y, int  flag, void* param)
             canvas(rc) = Vec3b(0, 0, 0);
             cv::putText(canvas, "Progressing image. Press any key to proceed.",
                 Size(300, 400), font, 1, Scalar(0, 255, 0), 1);
-            cv::imshow(WIN, canvas);
+            cv::imshow(WIN_DEF, canvas);
 
         }
         else if (next_hand_btn.contains(Point(x, y)))
@@ -240,16 +244,16 @@ void mouse_callback1(int  event, int  x, int  y, int  flag, void* param)
             canvas(rc) = Vec3b(0, 0, 0);
             cv::putText(canvas, "Proceeding to next customer hand. Press any key.",
                 Size(400, 400), font, 1, Scalar(0, 255, 0), 1);
-            cv::imshow(WIN, canvas);
+            cv::imshow(WIN_DEF, canvas);
         }
     }
 }
 
 void startScreen(size_t monitorHeight, size_t monitorWidth)
 {
-    cv::namedWindow(WIN, cv::WINDOW_GUI_NORMAL);
-    cv::moveWindow(WIN, 0, 0);
-    setMouseCallback(WIN, mouse_callback1);
+    cv::namedWindow(WIN_DEF, cv::WINDOW_GUI_NORMAL);
+    cv::moveWindow(WIN_DEF, 0, 0);
+    setMouseCallback(WIN_DEF, mouse_callback1);
 
 }
 
@@ -317,7 +321,7 @@ float angle2Lines(cv::Point l1p1, cv::Point l1p2, cv::Point l2p1, cv::Point l2p2
 
     angle = l1ToHorizontal + l2ToHorizontal;
 
-    cout << "Angle between le-se:"<< angle<< "  le: " << l1ToHorizontal << " se: " << l2ToHorizontal << endl;
+    //cout << "Angle between le-se:"<< angle<< "  le: " << l1ToHorizontal << " se: " << l2ToHorizontal << endl;
 
     return angle;
 }
@@ -412,6 +416,7 @@ cv::Mat get_finger(size_t idx, size_t xpos)
     h = (int)(img.rows * cr);
     cv::resize(img, img, cv::Size( w, h));
 
+
     Mat gray;
     cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
     vector<Point>  cntr = denoise(gray, img);
@@ -451,11 +456,11 @@ cv::Mat get_finger(size_t idx, size_t xpos)
         cv::line(img, Point(x1, y), Point(hmid, y), Scalar(0, 255, 0), 1);
         cv::line(img, Point(hmid, y), Point(x2, y), Scalar(255, 0, 0), 1);
 
-        cout<< x1 << " - " << hmid << " - " << x2 << "    ";
+        //cout<< x1 << " - " << hmid << " - " << x2 << "    ";
 
         string metrics;
         metrics += ImageIO::ftos(pxtomm(left)) + " mm | " + ImageIO::ftos(pxtomm(right)) + " mm ";
-        cout << metrics << endl;
+        //cout << metrics << endl;
         size_t H = canvas.rows;
         size_t pos = xpos - 20;
         switch (idx)
@@ -495,7 +500,7 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
             canvas(rc) = Vec3b(0, 0, 0);
             cv::putText(canvas, "Re-marking this image. Press any key to proceed.",
                 Size(300, 400), font, 1, Scalar(0, 255, 0), 1);
-            cv::imshow(WIN, canvas);
+            cv::imshow(WIN_DEF, canvas);
         }
         else if ( okay_btn.contains(Point(x, y)))
         {
@@ -505,7 +510,7 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
             canvas(rc) = Vec3b(0, 0, 0);
             cv::putText(canvas, "Progressing image. Press any key to proceed.",
                 Size(300, 400), font, 1, Scalar(0, 255, 0), 1);
-            cv::imshow(WIN, canvas);
+            cv::imshow(WIN_DEF, canvas);
 
         }
         else if (next_hand_btn.contains(Point(x, y)))
@@ -516,21 +521,21 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
             canvas(rc) = Vec3b(0, 0, 0);
             cv::putText(canvas, "Proceeding to next customer hand. Press any key.",
                 Size(400, 400), font, 1, Scalar(0, 255, 0), 1);
-            cv::imshow(WIN, canvas);
+            cv::imshow(WIN_DEF, canvas);
         }
         else
         {
             // Store point coordinates
             pt.x = x;
             pt.y = y;
-            cout << "Point ( " << pt.x << ", " << pt.y << ")" << endl;
+            //cout << "Point ( " << pt.x << ", " << pt.y << ")" << endl;
 
             if (mcount == 0)
             {
                 se1 = cv::Point(x, y);
                 cv::circle(img1, se1, 3, (0, 255, 255), 2);
                 img1.copyTo(canvas(Rect(0, 0, img1.cols, img1.rows)));
-                cv::imshow(WIN, canvas);
+                cv::imshow(WIN_DEF, canvas);
             }
             else if (mcount == 1)
             {
@@ -540,14 +545,14 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
                 cv::putText(canvas, "Mark the next short edge.",
                     Size(img1.cols + 6, 80), font, 0.6, Scalar(0, 255, 0), 1);
                 img1.copyTo(canvas(Rect(0, 0, img1.cols, img1.rows)));
-                cv::imshow(WIN, canvas);
+                cv::imshow(WIN_DEF, canvas);
             }
             if (mcount == 2)
             {
                 se3 = cv::Point(x, y);
                 cv::circle(img1, se3, 3, (0, 255, 255), 2);
                 img1.copyTo(canvas(Rect(0, 0, img1.cols, img1.rows)));
-                cv::imshow(WIN, canvas);
+                cv::imshow(WIN_DEF, canvas);
             }
             else if (mcount == 3)
             {
@@ -557,14 +562,14 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
                 cv::putText(canvas, "Mark a long edge.",
                     Size(img1.cols + 6, 120), font, 0.6, Scalar(0, 255, 0), 1);
                 img1.copyTo(canvas(Rect(0, 0, img1.cols, img1.rows)));
-                cv::imshow(WIN, canvas);
+                cv::imshow(WIN_DEF, canvas);
             }
             else if (mcount == 4)
             {
                 le1 = cv::Point(x, y);
                 cv::circle(img1, le1, 3, (0, 255, 255), 2);
                 img1.copyTo(canvas(Rect(0, 0, img1.cols, img1.rows)));
-                cv::imshow(WIN, canvas);
+                cv::imshow(WIN_DEF, canvas);
             }
             else if (mcount == 5)
             {
@@ -583,7 +588,7 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
 
 
                 img1.copyTo(canvas(Rect(0, 0, img1.cols, img1.rows)));
-                cv::imshow(WIN, canvas);
+                cv::imshow(WIN_DEF, canvas);
             }
 
             ++mcount;

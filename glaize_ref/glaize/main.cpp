@@ -187,7 +187,7 @@ int main(size_t monitorHeight, size_t monitorWidth )
                 std::cout << "L Finger: " << k << " size ( r, c ) : ( " << lf.rows << ", " << lf.cols << " )" << endl;
                 lf.copyTo(canvas(Rect(200 * k + 190, 400 - lf.rows, lf.cols, lf.rows)));
             }
-            imgFiles.output_csv(nail_metrics );
+            imgFiles.output_csv(nail_metrics, cc_length );
 
             cv::imshow(WIN, canvas);
             cv::waitKey(0);

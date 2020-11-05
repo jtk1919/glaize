@@ -1,7 +1,11 @@
 // glaize.cpp : Defines the entry point for the application.
 //
 
+#include <shlobj.h>
 #include <iostream>
+#include <opencv2//opencv.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
 #include "framework.h"
 #include "glaize.h"
 
@@ -10,14 +14,20 @@
 #define MAX_LOADSTRING 100
 
 
+const int ID_LOGBOX = 10004;
+const int ID_PYDIR_TBOX = 10005;
+const int ID_PYDIR_BTN = 10006;
+HWND logbox;
+HWND pydir_tbox;
+wstring pydirs;
+
+const int MAX_LOG_LEN = 32000;
+wstring logstr;
+
+
 size_t monitor_width, monitor_height;
 DWORD aOldColors[4];
 int aElements[4] = { COLOR_WINDOW, COLOR_WINDOWTEXT, COLOR_BTNFACE, COLOR_BTNTEXT };
-
-const int MAX_LOG_LEN = 32000;
-const int ID_LOGBOX = 10004;
-HWND logbox;
-wstring logstr;
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -30,6 +40,8 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 static void RedirectIOToConsole();
+static void printLog(HWND hWnd, wstring str);
+
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -149,15 +161,100 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    return TRUE;
 }
 
+void check_python_dir(HWND hWnd)
+{
+    size_t len = pydirs.size();
+    wstring pathEnd = pydirs.substr(len - 13);
+    if (pathEnd != wstring(L"\\glaize\\nails"))
+    {
+        printLog(hWnd, wstring(L"[ERROR] selected directory [") + pydirs + L"] is wrong.");
+        printLog(hWnd, L"[ERROR] Select Python work directory ending in '\\glaize\\nails'");
+        printLog(hWnd, L"[ERROR] Resetting to default.");
+        wchar_t home[100];
+        GetEnvironmentVariable(L"USERPROFILE", (LPWSTR)&home, 100);
+        pydirs = wstring(home) + wstring(L"\\work\\glaize\\nails");
+        SetDlgItemText(hWnd, ID_PYDIR_TBOX, pydirs.c_str());
+    }
+}
+
+wstring get_python_dir( HWND hWnd)
+{
+    wchar_t pydir[MAX_PATH];
+    wmemset(pydir, '\0', MAX_PATH);
+
+    wstring title(L"Select Python '...\\glaize\\nails' working directory");
+    wcscpy_s(pydir, pydirs.c_str());
+    const wchar_t *path_param = pydirs.c_str();
+    printLog(hWnd, L"Select the Python directory ('<PATH>\\glaize\\nails') for RCNN recognition.");
+
+    BROWSEINFO bi = { 0 };
+    bi.hwndOwner = hWnd;
+    bi.pszDisplayName = pydir;
+    bi.lpszTitle = title.c_str();
+    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE ;
+    bi.lpfn = NULL;
+    bi.lParam = (LPARAM)path_param;
+    LPITEMIDLIST pidl = SHBrowseForFolder(&bi);
+    if (pidl != 0)
+    {
+        //get the name of the folder and put it in path
+        SHGetPathFromIDList(pidl, pydir);
+
+        //free memory used
+        IMalloc* imalloc = 0;
+        if (SUCCEEDED(SHGetMalloc(&imalloc)))
+        {
+            imalloc->Free(pidl);
+            imalloc->Release();
+        }
+    }
+    SetDlgItemText(hWnd, ID_PYDIR_TBOX, pydir);
+    pydirs = wstring(pydir);
+    return pydir;
+}
+
+
+
 
 static void Create(HWND hWnd, LPPAINTSTRUCT lpPS)
 {
+    wchar_t home[100];
+    GetEnvironmentVariable(L"USERPROFILE", (LPWSTR)&home, 100);
+    pydirs = wstring(home) + wstring(L"\\work\\glaize\\nails");
+
+    pydir_tbox = CreateWindow(
+        L"EDIT",   // predefined class 
+        pydirs.c_str(),
+        WS_CHILD | WS_VISIBLE | WS_DISABLED | WS_BORDER | WS_EX_CLIENTEDGE |
+        ES_LEFT | ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL,
+        410,         // x position 
+        120,         // y position 
+        380,        //  width
+        30,        //  height
+        hWnd,         // parent window 
+        (HMENU)ID_PYDIR_TBOX,   // edit control ID 
+        (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE),
+        NULL);        // pointer not needed 
+
+    CreateWindow(
+        L"BUTTON",  // Predefined class; Unicode assumed 
+        L"Browse",      // Button text 
+        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,  // Styles 
+        800,         // x position 
+        120,         // y position 
+        200,        // Button width
+        30,        // Button height
+        hWnd,     // Parent window
+        (HMENU)ID_PYDIR_BTN,       // No menu.
+        (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE),
+        NULL);
+
     CreateWindow(
         L"BUTTON",  // Predefined class; Unicode assumed 
         L"Run RCNN on Images",      // Button text 
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,  // Styles 
         480,         // x position 
-        150,         // y position 
+        190,         // y position 
         200,        // Button width
         30,        // Button height
         hWnd,     // Parent window
@@ -170,7 +267,7 @@ static void Create(HWND hWnd, LPPAINTSTRUCT lpPS)
         L"Process Hand Images",      // Button text 
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,  // Styles 
         480,         // x position 
-        230,         // y position 
+        260,         // y position 
         200,        // Button width
         30,        // Button height
         hWnd,     // Parent window
@@ -183,7 +280,7 @@ static void Create(HWND hWnd, LPPAINTSTRUCT lpPS)
         L"Exit Application",      // Button text 
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,  // Styles 
         480,         // x position 
-        310,         // y position 
+        330,         // y position 
         200,        // Button width
         30,        // Button height
         hWnd,     // Parent window
@@ -194,7 +291,7 @@ static void Create(HWND hWnd, LPPAINTSTRUCT lpPS)
     logbox = CreateWindow(
         L"EDIT",   // predefined class 
         NULL,        
-        WS_CHILD | WS_VISIBLE | WS_DISABLED | WS_BORDER |
+        WS_CHILD | WS_VISIBLE | WS_DISABLED | WS_BORDER | WS_EX_CLIENTEDGE |
         ES_LEFT | ES_MULTILINE | ES_WANTRETURN| ES_AUTOVSCROLL,
         200,         // x position 
         420,         // y position 
@@ -242,8 +339,23 @@ static void Paint(HWND hWnd, LPPAINTSTRUCT lpPS)
     loc.top = rc.top + 19;
     DrawText(hdcMem, greeting, -1,  &loc,  DT_CENTER);
 
+    hFont = CreateFont(-20, 0,
+        lf.lfEscapement, lf.lfOrientation, lf.lfWeight,
+        lf.lfItalic, lf.lfUnderline, lf.lfStrikeOut, lf.lfCharSet,
+        lf.lfOutPrecision, lf.lfClipPrecision, PROOF_QUALITY,
+        VARIABLE_PITCH | FF_ROMAN, TEXT("Times New Roman"));
+    SelectObject(hdcMem, hFont);
+    SetBkMode(hdcMem, TRANSPARENT);
+    SetTextColor(hdcMem, RGB(0, 0, 100));
+    TCHAR pdir[] = _T("Python working directory:");
+    loc.top = rc.top + 120;
+    loc.left += 200;
+    DrawText(hdcMem, pdir, -1, &loc, DT_LEFT);
+
     BitBlt(lpPS->hdc, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, hdcMem, 0, 0, SRCCOPY);
     SelectObject(hdcMem, hbmOld);
+    SendMessage(pydir_tbox, WM_SETFONT, (WPARAM)hFont, TRUE);
+    SendMessage(logbox, WM_SETFONT, (WPARAM)hFont, TRUE);
     DeleteObject(hbmMem);
     DeleteDC(hdcMem);
 }
@@ -281,7 +393,7 @@ int runRCNN( HWND hWnd)
     if (!CreateProcess( L"C:\\Windows\\System32\\cmd.exe",
             cmd,
             NULL, NULL, 0, 0, NULL, 
-            L"C:\\Users\\jtk19\\work\\glaize\\nails\\", 
+            pydirs.c_str(), 
             &si, &pi))
     {
         printf("CreateProcess failed (%d).\n", GetLastError());
@@ -290,6 +402,8 @@ int runRCNN( HWND hWnd)
     WaitForSingleObject(pi.hProcess, INFINITE);
     FreeConsole();
     printLog( hWnd, L"Completed. Free to proceed.");
+    ::SetForegroundWindow(hWnd);
+    
 }
 
 
@@ -319,6 +433,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // Parse the menu selections:
             switch (wmId)
             {
+            case ID_PYDIR_BTN:
+                pydirs = get_python_dir(hWnd);
+                check_python_dir(hWnd);
+                break;
             case 10001:
                 printLog(hWnd, L"Running RCNN recognition.  Do not close the window or console. . .");
                 runRCNN(hWnd);
@@ -328,13 +446,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 main(monitor_height, monitor_width);
                 return 0;
             case 10003:
-                DestroyWindow(hWnd);
+                //DestroyWindow(hWnd);
+                cv::destroyAllWindows();
+                exit(0);
                 return 0;
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
             case IDM_EXIT:
-                DestroyWindow(hWnd);
+                //DestroyWindow(hWnd);
+                exit(0);
+                cv::destroyAllWindows();
                 break;
             default:
                 return DefWindowProc(hWnd, message, wParam, lParam);

@@ -8,8 +8,10 @@
 #define GL_DATA_WORKING_SUBDIR	"test/"
 #define GL_IMAGE_INPUT_CSV		"rec.csv"
 
-#define GL_DATA_PATH_LEFT_F		"images/left_fingers/"
-#define GL_DATA_PATH_LEFT_T		"images/left_thumbs/"
+#define GL_DATA_PATH_LEFT_F		"images_fake_nail_test/left_fingers/"
+#define GL_DATA_PATH_LEFT_T		"images_fake_nail_test/left_thumbs/"
+//#define GL_DATA_PATH_LEFT_F		"images/left_fingers/"
+//#define GL_DATA_PATH_LEFT_T		"images/left_thumbs/"
 #define GL_RESULTS_PATH			"results/csv/"	
 
 #define CC_LEN_PX				856

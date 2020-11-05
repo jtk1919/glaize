@@ -60,25 +60,45 @@ def upright( msk, is_left = True):
     return orientation, msk
 
 
+def smooth( img ):
+    contours, _ = cv2.findContours(img, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    contour = contours[0]
+    if len(contours) > 1:
+        max_area = 0
+        max_index = 0
+        for i in range(len(contours)):
+            area = cv2.contourArea(contours[i])
+            if (area > max_area):
+                max_area = area
+                max_index = i
+        contour = contours[max_index]
+    hull = cv2.convexHull(contour, False)
+    mask = np.zeros( img.shape[:2], np.uint8)
+    mask = cv2.drawContours(mask, [hull], 0, 255, -1, 8)
+    return mask
+
 def clip_finger_mask( idx, r, img, doWideClip = True ):
     msk1 = np.zeros(img.shape[:2], dtype="uint8")
     msk1[r['masks'][:, :, idx]] = 255
-    #m1 = cv2.fastNlMeansDenoising(msk1)
+    msk1 = smooth(msk1)
     nail_clipped = clip(msk1)
     return nail_clipped
 
 
-def pad( mask ):
+def pad( mask, shaped_pad=False):
     Y, X = mask.shape
-    crp = mask.copy()
-    if Y > X:
-        diff = int((Y - X) / 2)
-        crp = np.zeros([Y, Y], dtype="uint8")
-        crp[0:Y, diff:diff + X] = mask
-    elif X > Y:
-        diff = int((X - Y) / 2)
-        crp = np.zeros([X, X], dtype="uint8")
-        crp[diff:diff + Y, 0:X] = mask
+    if shaped_pad:
+        crp = np.zeros([Y+2, X+2], dtype="uint8")
+        crp[1:Y+1, 1:X+1] = mask
+    else:
+        if Y > X:
+            diff = int((Y - X) / 2)
+            crp = np.zeros([Y, Y], dtype="uint8")
+            crp[0:Y, diff:diff + X] = mask
+        elif X > Y:
+            diff = int((X - Y) / 2)
+            crp = np.zeros([X, X], dtype="uint8")
+            crp[diff:diff + Y, 0:X] = mask
     return crp
 
 
@@ -107,19 +127,19 @@ def clip( msk1, doWideClip = False ):
     if y2 == 0:
         y2 = len(vsum) -1
     rc, msk = cv2.threshold( msk1, 0.5, 255, cv2.THRESH_BINARY)
-    y1 = y1 -2
-    if y1 < 0:
-        y1 = 0
-    x1 = x1 - 2
-    if x1 < 0:
-        x1 = 0
-    r, c = msk.shape
-    x2 = x2 + 2
-    if x2 >= c:
-        x2 = c-1
-    y2 = y2 + 2
-    if y2 >= r:
-        y2 = r-1
+    # y1 = y1 -1
+    # if y1 < 0:
+    #     y1 = 0
+    # x1 = x1 - 1
+    # if x1 < 0:
+    #     x1 = 0
+    # r, c = msk.shape
+    # x2 = x2 + 1
+    # if x2 >= c:
+    #     x2 = c-1
+    # y2 = y2 + 1
+    # if y2 >= r:
+    #     y2 = r-1
     cropped_nail = msk[ y1:y2, x1:x2]
     crp = cropped_nail.copy()
     if doWideClip:
