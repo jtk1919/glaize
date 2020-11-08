@@ -84,6 +84,24 @@ string ImageIO::getFingerMask(uint8_t fid) const
 	return f;
 }
 
+string ImageIO::getWriteMask(uint8_t fid) const
+{
+	string f = cfg.results_masks_dir + _working_fn + "_l" + ImageIO::itos(fid) + ".png";
+	return f;
+}
+
+string ImageIO::getFingerSeg() const
+{
+	string f = cfg.working_dir + _working_fn + "_nails.png";
+	return f;
+}
+
+string ImageIO::getThumbSeg() const
+{
+	string f = cfg.working_dir + _working_fn + "_lthumb.png";
+	return f;
+}
+
 
 string ImageIO::getCsvFile() const
 {
@@ -92,7 +110,9 @@ string ImageIO::getCsvFile() const
 }
 
 
-void ImageIO::output_csv(vector< pair< vector<float>, vector<float> > >& nail_metrics, size_t cc[])
+void ImageIO::output_csv(vector< pair< vector<float>, vector<float> > >& nail_metrics, 
+							int turn_angle[],
+							size_t cc[])
 {
 	string csvf = getCsvFile();
 
@@ -119,6 +139,11 @@ void ImageIO::output_csv(vector< pair< vector<float>, vector<float> > >& nail_me
 		}
 		ofs << endl;
 	}
+	for (size_t i = 0; i < 4; ++i)
+	{
+		ofs << turn_angle[i] << ",";
+	}
+	ofs << turn_angle[4] << endl;;
 	ofs << cc[0] << "," << cc[1] << endl;
 }
 

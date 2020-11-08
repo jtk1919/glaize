@@ -80,6 +80,7 @@ config::config()
 			lfinger_data_dir = data_dir + GL_DATA_PATH_LEFT_F;
 			lthumb_data_dir = data_dir + GL_DATA_PATH_LEFT_T;
 			results_csv_dir = data_dir + GL_RESULTS_PATH;
+			results_masks_dir = data_dir + GL_RESULTS_PATH;
 		}
 		else if (var.find("last_run_file_id") != string::npos)
 		{

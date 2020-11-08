@@ -11,6 +11,7 @@
 #include <opencv2//opencv.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include "config.h"
 #include "ImageIO.h"
@@ -22,6 +23,7 @@
 using namespace std;
 using namespace cv;
 
+void reset();
 static void startScreen(size_t monitorHeight, size_t monitorWidth);
 static vector<string> getFiles();
 void mouse_callback(int  event, int  x, int  y, int  flag, void* param);
@@ -50,11 +52,17 @@ cv::Point se1, se2, se3, se4, le1, le2;
 
 ImageIO imgFiles;
 size_t current_finger_image_idx = 0;
-size_t cc_length[] = { 0, 0, 0, 0 };
-double conversion_rate[] = { 1.0, 1.0, 1.0, 1.0 };
+size_t cc_length[] = { 0, 0 };
+double conversion_rate[] = { 1.0, 1.0 };
+int turn_angle[] = { 0, 0, 0, 0, 0 };
 
 bool process_next = true;
 size_t cc = 0;
+
+Mat fingers[5];
+Mat save[5];
+Rect fingerLoc[5];
+
 
 
 int main(size_t monitorHeight, size_t monitorWidth )
@@ -169,9 +177,12 @@ int main(size_t monitorHeight, size_t monitorWidth )
             cout << "Processing..." << endl;
             canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
 
+            cv::putText(canvas, "Straignten finger nails and click \"Proceed.\"",
+                Size(canvas.cols - 600, 40), font, 0.6, Scalar(0, 255, 0), 1);
+
             next_hand_btn = cv::Rect(canvas.cols - 400, 500, 320, 40);
             canvas(next_hand_btn) = Vec3b(0, 200, 0);
-            putText(canvas(next_hand_btn), "Run For Next Hand",
+            putText(canvas(next_hand_btn), "Proceed",
                 Point((int)(next_hand_btn.width * 0.08), (int)(next_hand_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
 
             exit_btn = cv::Rect( canvas.cols - 400, 600, 320, 40);
@@ -190,9 +201,30 @@ int main(size_t monitorHeight, size_t monitorWidth )
                 cv::Mat3b lf = get_finger(k, 200 * k + 190 );
                 //cv::imshow("finger", lf);  cv::waitKey(0);
                 cout << "L Finger: " << k << " size ( r, c ) : ( " << lf.rows << ", " << lf.cols << " )" << endl;
-                lf.copyTo(canvas(Rect(200 * k + 190, 400 - lf.rows, lf.cols, lf.rows)));
+                fingerLoc[k] = Rect(200 * k + 190, 400 - lf.rows, lf.cols, lf.rows);
+                lf.copyTo(canvas( fingerLoc[k] ));
+                mcount = -1;
             }
-            imgFiles.output_csv(nail_metrics, cc_length );
+
+            int xhand = 200 * 5 + 190 + 300;
+            float tmp = monitorHeight;
+            tmp /= 20;
+            int sec = (int)tmp;
+            int yhand = 2 * sec;
+            int h = 8 * sec;
+            string f = imgFiles.getFingerSeg();
+            Mat img = cv::imread(f);
+            int w = (int)(h * img.cols / img.rows);
+            cv::resize(img, img, Size(w, h));
+            img.copyTo( canvas( Rect(xhand, yhand, w, h) ) );
+
+            yhand = 11 * sec;
+            f = imgFiles.getThumbSeg();
+            img = cv::imread(f);
+            w = (int)(h * img.cols / img.rows);
+            cv::resize(img, img, Size(w, h));
+            img.copyTo(canvas(Rect(xhand, yhand, w, h)));
+
 
             cv::imshow(WIN_DEF, canvas);
             cv::waitKey(0);
@@ -299,7 +331,9 @@ void processImageScaling()
 
     dist = dist / 4;
 
-    cc_length[current_finger_image_idx] = dist;
+    double dd = dist;
+    dd /= conversion_rate[current_finger_image_idx];
+    cc_length[current_finger_image_idx] = (int)dd;
     conversion_rate[current_finger_image_idx] = conversion_rate[current_finger_image_idx] * CC_LEN_PX / dist;
 
     cout << "Angle s1: " << angleToS1 << ",  Angle s2: " << angleToS2 << ", Distance s1-s2: " << dist << endl;
@@ -415,77 +449,171 @@ cv::Mat get_finger(size_t idx, size_t xpos)
     w = (int)(img.cols * cr);
     h = (int)(img.rows * cr);
     cv::resize(img, img, cv::Size( w, h));
-
-
-    Mat gray;
-    cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
-    vector<Point>  cntr = denoise(gray, img);
-
-    step = (int)(CC_PX_PER_MM/2);
-    cross_h = (int)(h / step);
-    cross_v = (int)(w / step);
-    hmid = (int)(w / 2);
-    for (size_t i = 0; i < cross_h; ++i )
-    {
-        x1 = x2 = hmid;
-        y = h - step * i - 3 ;
-        if (y < 0) break;
-
-        //printrow(gray, y);
-
-        left = 0;
-        right = 0;
-        for (size_t j = 0; j < hmid; ++j)
-        {
-            if (((int)gray.at<uchar>(y, j)) > 0)
-            {
-                x1 = j;
-                left = hmid - j;
-                break;
-            }
-        }
-        for (size_t j = w-1; j > hmid; --j)
-        {
-            if (((int)gray.at<uchar>(y, j)) > 0)
-            {
-                x2 = j;
-                right = j - hmid;
-                break;
-            }
-        }
-        cv::line(img, Point(x1, y), Point(hmid, y), Scalar(0, 255, 0), 1);
-        cv::line(img, Point(hmid, y), Point(x2, y), Scalar(255, 0, 0), 1);
-
-        //cout<< x1 << " - " << hmid << " - " << x2 << "    ";
-
-        string metrics;
-        metrics += ImageIO::ftos(pxtomm(left)) + " mm | " + ImageIO::ftos(pxtomm(right)) + " mm ";
-        //cout << metrics << endl;
-        size_t H = canvas.rows;
-        size_t pos = xpos - 20;
-        switch (idx)
-        {
-            case 0: pos -= 7; break;
-            case 2: pos += 5; break;
-            case 4: pos += 19; break;
-        }
-        putText(canvas, metrics.c_str(),
-            cv::Point( pos, H - i * 30 - 50), font, 0.5, Scalar(0, 255, 0), 1);
-
-        nail_metrics[idx].first.push_back(pxtomm(left));
-        nail_metrics[idx].second.push_back(pxtomm(right));
-    }
-
+    
+    fingers[idx] = img;
+    save[idx] = img;
     return img;
 }
 
 
+void rotate(size_t finidx, float angle, bool dosave = false)
+{
+    Mat img; 
+    if (dosave)
+    {
+        img = save[finidx];
+    }
+    else
+    {
+        img = fingers[finidx];
+    }
 
-void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
+    cv::Point2f center((img.cols - 1) / 2.0, (img.rows - 1) / 2.0);
+    cv::Mat rot = cv::getRotationMatrix2D(center, angle, 1.0);
+    // determine bounding rectangle, center not relevant
+    cv::Rect2f bbox = cv::RotatedRect(cv::Point2f(), img.size(), angle).boundingRect2f();
+    // adjust transformation matrix
+    rot.at<double>(0, 2) += bbox.width / 2.0 - img.cols / 2.0;
+    rot.at<double>(1, 2) += bbox.height / 2.0 - img.rows / 2.0;
+
+    Mat dst;
+    cv::warpAffine(img, dst, rot, bbox.size());
+    if (dosave)
+    {
+        save[finidx] = dst;
+    }
+    else
+    {
+        fingers[finidx] = dst;
+    }
+}
+
+
+void turn(size_t finidx, int x, int y)
+{
+    Rect fr = fingerLoc[finidx];
+    int fx = x - fr.x;
+    int midx = fr.width / 2;
+    int dist = midx - fx;
+    int direction = (dist > 0) ? 1 : -1;
+    dist = abs(dist);
+    if (dist > (fr.width * 6 / 8))
+    {
+        rotate(finidx, 2 * direction);
+        turn_angle[finidx] += 2 * direction;
+    }
+    else
+    {
+        rotate(finidx, 1 * direction);
+        turn_angle[finidx] += direction;
+    }
+    Mat lf = fingers[finidx];
+    size_t k = finidx;
+    Rect r = fingerLoc[k];
+    cv::rectangle(canvas, Point(r.x, r.y), Point(r.x + r.width, r.y + r.height), Scalar(0, 0, 0), -1);
+    fingerLoc[k] = Rect(200 * k + 190, 400 - lf.rows, lf.cols, lf.rows);
+    r = fingerLoc[k];
+    cv::rectangle(canvas, Point(r.x, r.y), Point(r.x + r.width, r.y + r.height), Scalar( 200, 0, 0), 1);
+    lf.copyTo(canvas(fingerLoc[k]));
+    cv::imshow(WIN_DEF, canvas);
+}
+
+
+void genNailMetrics()
+{
+    size_t w, h, cross_h, cross_v, hmid, x, y, x1 = 0, x2 = 0, left, right, step, xpos;
+    Mat gray;
+    float cr = 1.0;
+
+    for ( size_t idx = 0; idx < 5; ++idx )
+    {
+        Mat img = save[idx];
+        string f = imgFiles.getWriteMask(idx);
+        rotate(idx, turn_angle[idx], true);
+        img = save[idx];
+        //cv::threshold(img, img, 0.5, 255, THRESH_BINARY);
+        cv::imwrite(f, img);
+
+        xpos = 200 * idx + 190;
+
+        cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+        h = gray.rows;
+        w = gray.cols;
+
+        step = (int)(CC_PX_PER_MM/2);
+        cross_h = (int)(h / step);
+        cross_v = (int)(w / step);
+        hmid = (int)(w / 2);
+        for (size_t i = 0; i < cross_h; ++i )
+        {
+            x1 = x2 = hmid;
+            y = h - step * i - 3 ;
+            if (y < 0) break;
+
+            //printrow(gray, y);
+
+            left = 0;
+            right = 0;
+            for (size_t j = 0; j < hmid; ++j)
+            {
+                if (((int)gray.at<uchar>(y, j)) > 0)
+                {
+                    x1 = j;
+                    left = hmid - j;
+                    break;
+                }
+            }
+            for (size_t j = w-1; j > hmid; --j)
+            {
+                if (((int)gray.at<uchar>(y, j)) > 0)
+                {
+                    x2 = j;
+                    right = j - hmid;
+                    break;
+                }
+            }
+            cv::line(img, Point(x1, y), Point(hmid, y), Scalar(0, 255, 0), 1);
+            cv::line(img, Point(hmid, y), Point(x2, y), Scalar(0, 255, 0), 1);
+
+            //cout<< x1 << " - " << hmid << " - " << x2 << "    ";
+
+            string metrics;
+            metrics += ImageIO::ftos(pxtomm(left)) + " mm | " + ImageIO::ftos(pxtomm(right)) + " mm ";
+            //cout << metrics << endl;
+            size_t H = canvas.rows;
+            size_t pos = xpos - 20;
+            switch (idx)
+            {
+                case 0: pos -= 7; break;
+                case 2: pos += 5; break;
+                case 4: pos += 19; break;
+            }
+            putText(canvas, metrics.c_str(),
+                cv::Point( pos, H - i * 30 - 50), font, 0.5, Scalar(0, 255, 0), 1);
+
+            nail_metrics[idx].first.push_back(pxtomm(left));
+            nail_metrics[idx].second.push_back(pxtomm(right));
+        }
+
+        Mat lf = save[idx];
+        size_t k = idx;
+        Rect rc = fingerLoc[k];
+        cv::rectangle(canvas, Point(rc.x, rc.y), Point(rc.x + rc.width, rc.y + rc.height), Scalar(0, 0, 0), -1);
+        fingerLoc[k] = Rect(200 * k + 190, 400 - lf.rows, lf.cols, lf.rows);
+        rc = fingerLoc[k];
+        cv::rectangle(canvas, Point(rc.x, rc.y), Point(rc.x + rc.width, rc.y + rc.height), Scalar(200, 0, 0), 1);
+        lf.copyTo(canvas(fingerLoc[k]));
+    }
+    cv::imshow(WIN_DEF, canvas);
+    imgFiles.output_csv(nail_metrics, turn_angle, cc_length);
+}
+
+
+void mouse_callback(int event, int  x, int  y, int  flag, void* param)
 {
     if (event == EVENT_LBUTTONDOWN)
     {
-      
+            
         if (exit_btn.contains(Point(x, y)))
         {
             redo = false;
@@ -506,7 +634,8 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
         {
             redo = false;
             mcount = 0;
-            cv::Rect rc = cv::Rect(280, 350, 1000, 120);
+            cv::Rect rc = cv::Rect(280, 350, 
+                1000, 120);
             canvas(rc) = Vec3b(0, 0, 0);
             cv::putText(canvas, "Progressing image. Press any key to proceed.",
                 Size(300, 400), font, 1, Scalar(0, 255, 0), 1);
@@ -520,8 +649,42 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
             cv::Rect rc = cv::Rect(280, 350, 1000, 120);
             canvas(rc) = Vec3b(0, 0, 0);
             cv::putText(canvas, "Proceeding to next customer hand. Press any key.",
-                Size(400, 400), font, 1, Scalar(0, 255, 0), 1);
+                Size(1200, 400), font, 1, Scalar(0, 255, 0), 1);
+            genNailMetrics();
             cv::imshow(WIN_DEF, canvas);
+        }
+        else if (mcount < 0)
+        {
+            if (fingerLoc[0].contains(Point(x, y)))
+            {
+                cout << "finger 0" << endl;
+                turn(0, x, y);
+                mcount = -1;
+            }
+            else if (fingerLoc[1].contains(Point(x, y)))
+            {
+                cout << "finger 1" << endl;
+                turn(1, x, y);
+                mcount = -1;
+            }
+            else if (fingerLoc[2].contains(Point(x, y)))
+            {
+                cout << "finger 2" << endl;
+                turn(2, x, y);
+                mcount = -1;
+            }
+            else if (fingerLoc[3].contains(Point(x, y)))
+            {
+                cout << "finger 2" << endl;
+                turn(3, x, y);
+                mcount = -1;
+            }
+            else if (fingerLoc[4].contains(Point(x, y)))
+            {
+                cout << "finger 4" << endl;
+                turn(4, x, y);
+                mcount = -1;
+            }
         }
         else
         {
@@ -586,15 +749,18 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param)
                 putText(canvas(redo_btn), "Redo This Image", Point((int)(okay_btn.width * 0.23), (int)(okay_btn.height * 0.7)), font, 0.6, Scalar(0, 0, 0), 2);
                 putText(canvas(okay_btn), "Process Image", Point((int)(okay_btn.width * 0.23), (int)(okay_btn.height * 0.7)), font, 0.6, Scalar(0, 0, 0), 2);
 
-
                 img1.copyTo(canvas(Rect(0, 0, img1.cols, img1.rows)));
                 cv::imshow(WIN_DEF, canvas);
             }
-
+            else
+            {
+                // do nothing
+            }
             ++mcount;
         }
     }
 }
+
 
 vector<string> getFiles()
 {
@@ -638,6 +804,19 @@ void clear_metrics()
         nail_metrics[i].first.clear();
         nail_metrics[i].second.clear();
     }
+    reset();
+}
 
+
+void reset()
+{
+    cc_length[0] = 0;
+    cc_length[1] = 0;
+    conversion_rate[0] = 0;
+    conversion_rate[1] = 0;
+    for (size_t i = 0; i < 5; ++i)
+    {
+        turn_angle[i] = 0;
+    }
 }
 

@@ -28,6 +28,10 @@ public:
 	}
 
 	string getFingerMask(uint8_t fid) const;
+	string getWriteMask(uint8_t fid) const;
+
+	string getFingerSeg() const;
+	string getThumbSeg() const;
 
 	string getCsvFile() const;
 
@@ -35,7 +39,9 @@ public:
 	static string ftos(double d);
 	static int last_run_file_id(string f);
 
-	void output_csv(vector< pair< vector<float>, vector<float> > >  &nail_metrics, size_t cc[] );
+	void output_csv(vector< pair< vector<float>, vector<float> > >  &nail_metrics, 
+								int turn_angle[],
+								size_t cc[] );
 
 private:
 

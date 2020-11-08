@@ -36,6 +36,7 @@ public:
 	string lfinger_data_dir;
 	string lthumb_data_dir;
 	string results_csv_dir;
+	string results_masks_dir;
 
 	int last_run_file_id;
 
