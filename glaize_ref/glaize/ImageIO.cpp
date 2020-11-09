@@ -145,7 +145,9 @@ string ImageIO::getCsvFile(bool tonly) const
 }
 
 
-void ImageIO::output_csv(vector< pair< vector<float>, vector<float> > >& nail_metrics, size_t cc[])
+void ImageIO::output_csv(vector< pair< vector<float>, vector<float> > >& nail_metrics,
+	int turn_angle[],
+	size_t cc[])
 {
 	string csvf = getCsvFile();
 
@@ -172,6 +174,11 @@ void ImageIO::output_csv(vector< pair< vector<float>, vector<float> > >& nail_me
 		}
 		ofs << endl;
 	}
+	for (size_t i = 0; i < 4; ++i)
+	{
+		ofs << turn_angle[i] << ",";
+	}
+	ofs << turn_angle[4] << endl;;
 	ofs << cc[0] << endl;
 }
 

@@ -573,7 +573,7 @@ void genNailMetrics()
                 }
             }
             cv::line(img, Point(x1, y), Point(hmid, y), Scalar(0, 255, 0), 1);
-            cv::line(img, Point(hmid, y), Point(x2, y), Scalar(0, 255, 0), 1);
+            cv::line(img, Point(hmid, y), Point(x2, y), Scalar(255, 0, 0), 1);
 
             //cout<< x1 << " - " << hmid << " - " << x2 << "    ";
 

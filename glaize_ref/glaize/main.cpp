@@ -178,7 +178,7 @@ int main(size_t monitorHeight, size_t monitorWidth )
             size_t x1, x2;
             x1 = int((monitorWidth - 400 - CC_LEN_PX) / 2);
             x2 = x1 + CC_LEN_PX;
-            cv::line(   canvas, cv::Point( x1 , 100 ) ,  cv::Point( x2, 100 ),  cv::Scalar(0, 255, 0), 2);
+            cv::line( canvas, cv::Point( x1 , 100 ) ,  cv::Point( x2, 100 ),  cv::Scalar(0, 255, 0), 2);
             size_t num_fingers = imgFiles.num_fingers;
             for (size_t k = 0; k < num_fingers; ++k)
             {
@@ -187,7 +187,8 @@ int main(size_t monitorHeight, size_t monitorWidth )
                 std::cout << "L Finger: " << k << " size ( r, c ) : ( " << lf.rows << ", " << lf.cols << " )" << endl;
                 lf.copyTo(canvas(Rect(200 * k + 190, 400 - lf.rows, lf.cols, lf.rows)));
             }
-            imgFiles.output_csv(nail_metrics, cc_length );
+            int turn_angle[] = { 0, 0, 0, 0, 0 };
+            imgFiles.output_csv(nail_metrics, turn_angle, cc_length);
 
             cv::imshow(WIN, canvas);
             cv::waitKey(0);
@@ -237,7 +238,9 @@ void processImageScaling()
 
     dist = dist / 4;
 
-    cc_length[current_finger_image_idx] = dist;
+    double dd = dist;
+    dd /= conversion_rate[current_finger_image_idx];
+    cc_length[current_finger_image_idx] = (int)dd;
     conversion_rate[current_finger_image_idx] = conversion_rate[current_finger_image_idx] * CC_LEN_PX / dist;
 
     std::cout << "Angle s1: " << angleToS1 << ",  Angle s2: " << angleToS2 << ", Distance s1-s2: " << dist << endl;
