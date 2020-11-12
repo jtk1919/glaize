@@ -102,7 +102,7 @@ string ImageIO::getThumbSeg() const
 	return f;
 }
 
-
+   
 string ImageIO::getCsvFile() const
 {
 	string f = cfg.results_csv_dir + _working_fn + ".csv";

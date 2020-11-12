@@ -45,6 +45,7 @@ bool newCoords = false;
 cv::Mat3b canvas;
 cv::Rect redo_btn, okay_btn, next_hand_btn, exit_btn;
 boolean redo = false;
+bool genmetrics = false;
 
 Mat img1, img2;
 int mcount = 0;
@@ -78,9 +79,11 @@ int main(size_t monitorHeight, size_t monitorWidth )
     bool done = false;
     for (size_t i = 0; !done; ++i)
     {
+        if (done) break;
         ++cc;
         clear_metrics();
         redo = false;
+        genmetrics = true;
 
         for (size_t j = 0; j < 2; redo ? redo = true : ++j)
         {         
@@ -96,6 +99,11 @@ int main(size_t monitorHeight, size_t monitorWidth )
                 else
                 {
                     fn = imgFiles.getLeftThumbF();
+                }
+                if (fn.empty() )
+                {
+                    done = true;
+                    break;
                 }
                 img = cv::imread(fn);
                 redo = false;
@@ -525,6 +533,8 @@ void genNailMetrics()
     Mat gray;
     float cr = 1.0;
 
+    if (!genmetrics) return;
+
     for ( size_t idx = 0; idx < 5; ++idx )
     {
         Mat img = save[idx];
@@ -606,6 +616,7 @@ void genNailMetrics()
     }
     cv::imshow(WIN_DEF, canvas);
     imgFiles.output_csv(nail_metrics, turn_angle, cc_length);
+    genmetrics = false;
 }
 
 

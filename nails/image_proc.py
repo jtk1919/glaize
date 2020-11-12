@@ -206,14 +206,13 @@ def nail_upright( img ):
                 max_area = area
                 max_index = i
         contours = contours[max_index]
-    #_ = cv2.drawContours( img, [contours], 0, (0, 255, 0), 2)
-    angle = get_orientation( contours, img )
-    agl = -1 *(90 - (angle * 180 / pi))
+    # _ = cv2.drawContours( img, [contours], 0, (0, 255, 0), 2)
+
     img1 = pad(img)
     img1 = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
-    img1 = imutils.rotate(img1, agl )
-    img1 = cv2.cvtColor( img1, cv2.COLOR_BGR2GRAY )
-    print( "angle: ", agl )
+    img1 = imutils.rotate(img1, agl)
+    img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+    print("angle: ", agl)
     img1 = clip(img1)
     return img1
 
