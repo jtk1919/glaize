@@ -54,6 +54,8 @@ SIZE_CHART = [ [ 11, 11, 11, 11, 10, 10, 10, 9,	9,	7,	9,	7,	6,	6 ],
                [ 7, 7, 7, 6, 6, 6, 6, 5, 5, 3, 5, 4, 3, 3 ],
                [ 4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1, 0 ] ]
 
+NOT_LIVE = True
+
 csvf = TEST_DIR + "rec.csv"
 csverr = TEST_DIR + "err.csv"
 
@@ -187,9 +189,11 @@ class Combi_Model_Set:
             cv = self.combi_models[i].get_full_cross_combivec( fin_only )
             dist = distance.euclidean( hv, cv)
             dist_vec.append([i, dist])
-            print( "Full-cross Combi distance from hand to combi {} is {}".format(i+1, dist) )
+            if NOT_LIVE:
+                print( "Full-cross Combi distance from hand to combi {} is {}".format(i+1, dist) )
         dist_vec.sort(key=lambda x: x[1])
-        print( "Fingers classified to combi {} with distance {}".format( dist_vec[0][0]+1, dist_vec[0][1]) )
+        if NOT_LIVE:
+            print( "Fingers classified to combi {} with distance {}".format( dist_vec[0][0]+1, dist_vec[0][1]) )
         return dist_vec[:3]
 
 
@@ -259,11 +263,10 @@ elif opt.image in ['TEST', 'test']:
         print(f)
         print()
 else:
+    NOT_LIVE = False
     f = opt.image
     hm = Hand_Model(f)
     combi = cm_set.geometric_hand_distance(hm, False)
-    print( combi )
-    print(f)
-    print()
+    print( combi[0][0] )
 
 

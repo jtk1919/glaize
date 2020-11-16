@@ -9,4 +9,4 @@
 const std::set<std::string>   ext_set( { ".png", ".jpg", ".jpeg", ".JPG", ".PNG", ".JPEG" } );
 
 
-int main( size_t monitorHeight, size_t monitorWidth );
+int main( size_t monitorHeight, size_t monitorWidth, std::wstring pydir );

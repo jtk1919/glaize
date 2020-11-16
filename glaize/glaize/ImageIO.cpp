@@ -109,6 +109,65 @@ string ImageIO::getCsvFile() const
 	return f;
 }
 
+string ImageIO::getTempFile() const
+{
+	string f = cfg.results_csv_dir + "temp.txt";
+	return f;
+}
+
+const string ImageIO::combi_findir[] = { 
+	"Left fingers combi 1", "Left fingers combi 2 and 3",
+	"Left fingers combi 2 and 3", "Left fingers combi 4",
+	"Left fingers combi 5 and 7", "Left fingers combi 6",
+	"Left fingers combi 5 and 7", "Left fingers combi 8 and 9",
+	"Left fingers combi 8 and 9", "Left fingers combi 10",
+	"Left fingers combi 11", "Left fingers combi 12",
+	"Left fingers combi 13 and 14", "Left fingers combi 13 and 14"
+};
+
+const string ImageIO::combi_tdir[] = {
+	"Thumb combi 1 and 2", "Thumb combi 1 and 2",
+	"Thumb combi 3 4 and 5", "Thumb combi 3 4 and 5",
+	"Thumb combi 3 4 and 5", "Thumb combi 6 7 and 8",
+	"Thumb combi 6 7 and 8", "Thumb combi 6 7 and 8",
+	"Thumb combi 9 10 11 12 and 13", "Thumb combi 9 10 11 12 and 13",
+	"Thumb combi 9 10 11 12 and 13", "Thumb combi 9 10 11 12 and 13",
+	"Thumb combi 9 10 11 12 and 13", "Thumb combi 14"
+};
+
+string ImageIO::getNail3dFile(size_t combi, size_t fin) const
+{
+	string f = string(GL_DATA_DIR) + GL_NAIL3D_DIR;
+	if (fin < 4)
+	{
+		f += combi_findir[combi] + "/f3d_" + itos(fin) + ".png";
+	}
+	else if (fin == 4)
+	{
+		f += combi_tdir[combi] + "/f3d_4.png";
+	}
+	else
+	{
+		throw invalid_argument(
+			string("[ERROR ImageIO::getNail3dFile] Combi out of range: ") 
+				+ itos(combi));
+	}
+
+	return f;
+}
+
+
+int ImageIO::getFin3d(int combi, cv::Mat fin3d[])
+{
+	for (size_t i = 0; i < 5; ++i)
+	{
+		string f = getNail3dFile(combi, i);
+		fin3d[i] = cv::imread(f);
+	}
+	return 0;
+}
+
+
 
 void ImageIO::output_csv(vector< pair< vector<float>, vector<float> > >& nail_metrics, 
 							int turn_angle[],

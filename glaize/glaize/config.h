@@ -14,6 +14,8 @@
 //#define GL_DATA_PATH_LEFT_T		"images/left_thumbs/"
 #define GL_RESULTS_PATH			"results/csv/"	
 
+#define GL_NAIL3D_DIR			"testref/"
+
 #define CC_LEN_PX				856
 #define CC_PX_PER_MM			10
 

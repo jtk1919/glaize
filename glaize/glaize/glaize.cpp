@@ -1,7 +1,9 @@
 // glaize.cpp : Defines the entry point for the application.
 //
 
+#include <windows.h> 
 #include <shlobj.h>
+#include <strsafe.h>
 #include <iostream>
 #include <opencv2//opencv.hpp>
 #include <opencv2/core.hpp>
@@ -41,6 +43,7 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 static void RedirectIOToConsole();
 static void printLog(HWND hWnd, wstring str);
+static void ErrorExit(wstring wFunction);
 
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -163,6 +166,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 void check_python_dir(HWND hWnd)
 {
+ 
     size_t len = pydirs.size();
     wstring pathEnd = pydirs.substr(len - 13);
     if (pathEnd != wstring(L"\\glaize\\nails"))
@@ -212,8 +216,6 @@ wstring get_python_dir( HWND hWnd)
     pydirs = wstring(pydir);
     return pydir;
 }
-
-
 
 
 static void Create(HWND hWnd, LPPAINTSTRUCT lpPS)
@@ -306,7 +308,6 @@ static void Create(HWND hWnd, LPPAINTSTRUCT lpPS)
 }
 
 
-
 static void Paint(HWND hWnd, LPPAINTSTRUCT lpPS)
 {
     RECT rc;
@@ -377,6 +378,7 @@ void printLog( HWND hWnd,  wstring str)
 }
 
 
+
 int runRCNN( HWND hWnd)
 {
     STARTUPINFO si = { sizeof(STARTUPINFO) };
@@ -389,10 +391,11 @@ int runRCNN( HWND hWnd)
     LPTSTR cmd = _tcsdup(TEXT("/C python rec.py"));
     //cmd = _tcsdup(TEXT("/C dir"));
 
-    RedirectIOToConsole();
     if (!CreateProcess( L"C:\\Windows\\System32\\cmd.exe",
             cmd,
-            NULL, NULL, 0, 0, NULL, 
+            NULL, NULL, 
+            0, 0,
+            NULL, 
             pydirs.c_str(), 
             &si, &pi))
     {
@@ -401,6 +404,8 @@ int runRCNN( HWND hWnd)
     }
     WaitForSingleObject(pi.hProcess, INFINITE);
     FreeConsole();
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
     printLog( hWnd, L"Completed. Free to proceed.");
     ::SetForegroundWindow(hWnd);
     
@@ -443,7 +448,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 return 0;
             case 10002:
                 RedirectIOToConsole();
-                main(monitor_height, monitor_width);
+                main(monitor_height, monitor_width, pydirs);
                 return 0;
             case 10003:
                 //DestroyWindow(hWnd);
@@ -564,4 +569,38 @@ void RedirectIOToConsole()
     std::wcin.clear();
     std::cin.clear();
 
+}
+
+
+// Format a readable error message, display a message box, 
+// and exit from the application.
+void ErrorExit(wstring wFunction)
+{
+    LPVOID lpMsgBuf;
+    LPVOID lpDisplayBuf;
+    DWORD dw = GetLastError();
+
+    const wchar_t* lpszFunction = wFunction.c_str();
+
+    FormatMessage(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        dw,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPTSTR)&lpMsgBuf,
+        0, NULL);
+
+    lpDisplayBuf = (LPVOID)LocalAlloc(LMEM_ZEROINIT,
+        (lstrlen((LPCTSTR)lpMsgBuf) + lstrlen((LPCTSTR)lpszFunction) + 40) * sizeof(TCHAR));
+    StringCchPrintf((LPTSTR)lpDisplayBuf,
+        LocalSize(lpDisplayBuf) / sizeof(TCHAR),
+        TEXT("%s failed with error %d: %s"),
+        lpszFunction, dw, lpMsgBuf);
+    MessageBox(NULL, (LPCTSTR)lpDisplayBuf, TEXT("Error"), MB_OK);
+
+    LocalFree(lpMsgBuf);
+    LocalFree(lpDisplayBuf);
+    ExitProcess(1);
 }

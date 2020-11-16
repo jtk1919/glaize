@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <opencv2//opencv.hpp>
 #include "resource.h"
 #include "config.h"
 
@@ -34,6 +35,10 @@ public:
 	string getThumbSeg() const;
 
 	string getCsvFile() const;
+	string getTempFile() const;
+	string getNail3dFile( size_t combi, size_t fin) const;
+
+	int getFin3d( int combi, cv::Mat fin3d[]) ;
 
 	static string itos(int i);
 	static string ftos(double d);
@@ -50,4 +55,6 @@ private:
 	ifstream _csvfs;
 	string _working_fn;
 
+	static const string combi_findir[];
+	static const string combi_tdir[];
 };
