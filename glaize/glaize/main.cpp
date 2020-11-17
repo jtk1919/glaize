@@ -183,8 +183,8 @@ int main(size_t monitorH, size_t monitorW, wstring pyd)
 
             exit_btn = cv::Rect(canvas.cols - 400, 600, 320, 40);
             canvas(exit_btn) = Vec3b(0, 200, 0);
-            putText(canvas(exit_btn), "Exit Program",
-                Point((int)(exit_btn.width * 0.2), (int)(exit_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
+            putText(canvas(exit_btn), "Exit Application",
+                Point((int)(exit_btn.width * 0.17), (int)(exit_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
 
             cv::imshow(WIN_DEF, canvas);
             cv::waitKey(0);
@@ -217,8 +217,8 @@ int main(size_t monitorH, size_t monitorW, wstring pyd)
 
             exit_btn = cv::Rect( canvas.cols - 400, 600, 320, 40);
             canvas(exit_btn) = Vec3b(0, 200, 0);
-            putText(canvas(exit_btn), "Exit Program",
-                Point((int)(exit_btn.width * 0.2), (int)(exit_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
+            putText(canvas(exit_btn), "Exit Application",
+                Point((int)(exit_btn.width * 0.17), (int)(exit_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
 
             putText(canvas, "Scale: 85.6 millimeters",
                 cv::Point(int(( monitorWidth - 400 - CC_LEN_PX) / 2), 70), font, 0.73, Scalar(0, 255, 0), 1);
@@ -270,9 +270,6 @@ int main(size_t monitorH, size_t monitorW, wstring pyd)
 
 void fakeNailMapping()
 {
-    cv::Mat fin3d[5];
-    int rc;
-
     STARTUPINFO si = { sizeof(STARTUPINFO) };
     PROCESS_INFORMATION pi;
 
@@ -306,15 +303,42 @@ void fakeNailMapping()
     fs.close();
     cout << "Hand classified to combi " << combi + 1;
 
-    rc = imgFiles.getFin3d(combi, fin3d);
+    cv::Mat fin3d[5], fake[5];
+    size_t cc[2];
+    int rc;
+
+    rc = imgFiles.getFin3d(combi, fin3d, fake, cc);
 
     for (size_t k = 0; k < 5; ++k)
     {
+        int w, h, x;
+        size_t ci = (k == 4) ? 1 : 0;
+        double cr = CC_LEN_PX;
+        cr /= cc[ci];
+
+        cv::Mat lf1 = fingers[k];
+        x = 340 * k + 300 - round(lf1.cols / 2);
+        fingerLoc[k] = Rect( x, 700 - lf1.rows, lf1.cols, lf1.rows);
+        lf1.copyTo(canvas(fingerLoc[k]));
+
         cv::Mat lf = fin3d[k];
+        w = (int)(lf.cols * cr);
+        h = (int)(lf.rows * cr);
+        cv::resize( lf, lf, cv::Size(w, h));
+
         cout << "L Finger: " << k << " size ( r, c ) : ( " << lf.rows << ", " << lf.cols << " )" << endl;
-        fingerLoc[k] = Rect(300 * k + 190, 800 - lf.rows, lf.cols, lf.rows);
+        x = 340 * k + 300 - round(lf.cols / 2);
+        fingerLoc[k] = Rect( x, 1000 - lf.rows, lf.cols, lf.rows);
         lf.copyTo(canvas(fingerLoc[k]));
-        mcount = -1;
+
+        cv::Mat lf2 = fake[k];
+        w = (int)(lf2.cols * cr);
+        h = (int)(lf2.rows * cr);
+        cv::resize(lf2, lf2, cv::Size(w, h));
+        x = 340 * k + 300 - round(lf2.cols / 2);
+        fingerLoc[k] = Rect( x, 1300 - lf2.rows, lf2.cols, lf2.rows);
+        lf2.copyTo(canvas(fingerLoc[k]));
+
     }
     
 }
@@ -332,12 +356,12 @@ void compose()
     next_hand_btn = cv::Rect(canvas.cols - 400, 500, 320, 40);
     canvas(next_hand_btn) = Vec3b(0, 200, 0);
     putText(canvas(next_hand_btn), "Print",
-        Point((int)(next_hand_btn.width * 0.3), (int)(next_hand_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
+        Point((int)(next_hand_btn.width * 0.4), (int)(next_hand_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
 
     exit_btn = cv::Rect(canvas.cols - 400, 600, 320, 40);
     canvas(exit_btn) = Vec3b(0, 200, 0);
     putText(canvas(exit_btn), "Exit Application",
-        Point((int)(exit_btn.width * 0.2), (int)(exit_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
+        Point((int)(exit_btn.width * 0.17), (int)(exit_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
 
     putText(canvas, "Scale: 85.6 millimeters",
         cv::Point(int((monitorWidth - 400 - CC_LEN_PX) / 2), 70), font, 0.73, Scalar(0, 255, 0), 1);
@@ -346,9 +370,27 @@ void compose()
     x2 = x1 + CC_LEN_PX;
     cv::line(canvas, cv::Point(x1, 100), cv::Point(x2, 100), cv::Scalar(0, 255, 0), 2);
 
+    int xhand = 200 * 5 + 240 + 700;
+    float tmp = monitorHeight;
+    tmp /= 20;
+    int sec = (int)tmp;
+    int yhand = 2 * sec;
+    int h = 8 * sec;
+    string f = imgFiles.getFingerSeg();
+    Mat img = cv::imread(f);
+    int w = (int)(h * img.cols / img.rows);
+    cv::resize(img, img, Size(w, h));
+    img.copyTo(canvas(Rect(xhand, yhand, w, h)));
+
+    yhand = 11 * sec;
+    f = imgFiles.getThumbSeg();
+    img = cv::imread(f);
+    w = (int)(h * img.cols / img.rows);
+    cv::resize(img, img, Size(w, h));
+    img.copyTo(canvas(Rect(xhand, yhand, w, h)));
+
 
     fakeNailMapping();
-
 
     cv::imshow(WIN_DEF, canvas);
     cv::waitKey(0);
@@ -514,7 +556,7 @@ cv::Mat get_finger(size_t idx, size_t xpos)
     cv::resize(img, img, cv::Size( w, h));
     
     fingers[idx] = img;
-    save[idx] = img;
+    save[idx] = img.clone();
     return img;
 }
 

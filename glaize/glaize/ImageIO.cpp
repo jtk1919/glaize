@@ -138,6 +138,7 @@ const string ImageIO::combi_tdir[] = {
 string ImageIO::getNail3dFile(size_t combi, size_t fin) const
 {
 	string f = string(GL_DATA_DIR) + GL_NAIL3D_DIR;
+
 	if (fin < 4)
 	{
 		f += combi_findir[combi] + "/f3d_" + itos(fin) + ".png";
@@ -156,13 +157,63 @@ string ImageIO::getNail3dFile(size_t combi, size_t fin) const
 	return f;
 }
 
-
-int ImageIO::getFin3d(int combi, cv::Mat fin3d[])
+string ImageIO::geFakeNailFile(size_t combi, size_t fin) const
 {
+	string f = string(GL_DATA_DIR) + GL_NAIL3D_DIR;
+	if (fin < 4)
+	{
+		f += combi_findir[combi] + "/IMG_l" + itos(fin) + ".png";
+	}
+	else if (fin == 4)
+	{
+		f += combi_tdir[combi] + "/IMG_l4.png";
+	}
+	else
+	{
+		throw invalid_argument(
+			string("[ERROR ImageIO::getNail3dFile] Combi out of range: ")
+			+ itos(combi));
+	}
+
+	return f;
+}
+
+int ImageIO::getFin3d(int combi, cv::Mat fin3d[], cv::Mat fake[], size_t cc[])
+{
+	string csv, ln;
+	size_t cc_fin, cc_th;
+
+	csv = string(GL_DATA_DIR) + GL_NAIL3D_DIR + combi_findir[combi] + "/IMG.csv";
+	ifstream fs(csv, ios_base::in);
+	for (size_t i = 0; i < 11; ++i)
+	{
+		getline(fs, ln);
+	}
+	fs.close();
+	stringstream ss;
+	ss << ln;
+	ss >> cc_fin;
+	cc[0] = cc_fin;
+
+	csv = string(GL_DATA_DIR) + GL_NAIL3D_DIR + combi_tdir[combi] + "/IMG.csv";
+	fs.open(csv, ios_base::in);
+	for (size_t i = 0; i < 5; ++i)
+	{
+		getline(fs, ln);
+	}
+	fs.close();
+	stringstream ss1;
+	ss1 << ln;
+	ss1 >> cc_th;
+	cc[1] = cc_th;
+
 	for (size_t i = 0; i < 5; ++i)
 	{
 		string f = getNail3dFile(combi, i);
 		fin3d[i] = cv::imread(f);
+
+		f = geFakeNailFile(combi, i);
+		fake[i] = cv::imread(f);
 	}
 	return 0;
 }

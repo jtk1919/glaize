@@ -37,8 +37,9 @@ public:
 	string getCsvFile() const;
 	string getTempFile() const;
 	string getNail3dFile( size_t combi, size_t fin) const;
+	string geFakeNailFile(size_t combi, size_t fin) const;
 
-	int getFin3d( int combi, cv::Mat fin3d[]) ;
+	int getFin3d( int combi, cv::Mat fin3d[], cv::Mat fake[], size_t cc[]);
 
 	static string itos(int i);
 	static string ftos(double d);
