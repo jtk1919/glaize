@@ -8,7 +8,7 @@ import imutils
 import image_proc as ip
 
 
-CC_LEN_PX = 1600
+CC_LEN_PX = 2400
 
 COMBI_FINGERS = [ 'Left fingers combi 1', 'Left fingers combi 2 and 3',
                   'Left fingers combi 2 and 3', 'Left fingers combi 4',
@@ -147,47 +147,82 @@ combi = getCombiMasks(cid)
 
 fingr = getHandNails( csvf )
 ## turned angles and symmetry
+H = 1
 for i in range( len(fingr) ):
     fin = fingr[i]
-    cmb = combi[1]
+    cmb = combi[i]
     contours, _ = cv2.findContours(fin, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     contr = contours[0]
     h, w = fingr[i].shape
     r, c = combi[i].shape
+    H = h
     xtop = []
     xbtm = []
     for p in contr:
         x, y = p[0]
-        if y < 3:
+        if y < 7:
             xtop.append(x)
-        elif y > (h -4):
+        elif y > (h - 8):
             xbtm.append(x)
     midx = round((min(xtop) + max(xtop) + min(xbtm) + max(xbtm) ) / 4 )
+    new_width = w
+    if (midx + 1) - (w - midx - 1) > 4:
+        new_width = 2 * (midx + 1)
+    elif (w - midx - 1) - (midx + 1) > 3:
+        new_width = 2 * (w - midx - 1)
+    change = (new_width / w  - 1 ) * 100
+    print( "change: ", change )
+    if (change > 10):
+        midx = round(( min(xbtm) + max(xbtm)) / 2)
+        print( "changing")
     half_w = max( midx + 1, w - midx - 1)
     X = max( w, c, 2 * half_w )
     Y = max( h, r )
     mid_X = int( X/2)
     canvasf = np.zeros( (Y, X), np.uint8)
     canvasc = canvasf.copy()
-    if (midx +1) - (w - midx -1) > 4:
+    new_width = w
+    if (midx +1) - (w - midx -1) > 8:
+        print( "Left Half")
         crop = np.zeros( (h, midx+1), np.uint8);
         crop[ 0:h, 0:midx+1] = fingr[i][ 0:h, 0:midx+1]
         mirror = cv2.flip( crop, 1)
         canvasf[ Y-h:Y, mid_X-midx-1:mid_X]  = crop
         canvasf[ Y-h:Y, mid_X:mid_X+midx+1] = mirror
-    elif (w - midx -1) - (midx + 1) > 3:
+        new_width = 2 * (midx + 1)
+    elif (w - midx -1) - (midx + 1) > 8:
+        print("Right Half")
         crop = np.zeros((h, w - midx -1), np.uint8);
         crop[0:h, 0:w - midx -1] = fingr[i][0:h, midx:w-1]
         mirror = cv2.flip(crop, 1)
         canvasf[ Y-h:Y, mid_X - w + midx +1 :mid_X ] = mirror
         canvasf[ Y-h:Y, mid_X:mid_X+w -midx -1] = crop
+        new_width = 2 * (w - midx - 1)
     else:
+        print("Straight")
         w2 = round( w/2)
         canvasf[ Y-h:Y, mid_X - w2: mid_X - w2 + w ] = fingr[i]
-    print(combi[i].shape, fingr[i].shape, canvasf.shape)
+    contours, _ = cv2.findContours(canvasf, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    contour = contours[0]
+    hull = cv2.convexHull(contour, False)
+    mask = np.zeros(canvasf.shape[:2], np.uint8)
+    mask = cv2.drawContours(mask, [hull], 0, 255, -1, 8)
+    #
+    contours, _ = cv2.findContours(combi[i], cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    contour = contours[0]
+    hull = cv2.convexHull(contour, False)
+    mask1 = np.zeros(combi[i].shape[:2], np.uint8)
+    mask1 = cv2.drawContours(mask1, [hull], 0, 255, -1, 8)
+    if ( Y > r):
+        mask2 = np.zeros((Y,X), np.uint8)
+        mask2[Y-r:Y, 0:X] = mask1
+        mask1 = mask2.copy()
+    #
+    print(w, new_width, new_width/w )
     cv2.imshow("combi{}".format(i), combi[i])
     cv2.imshow("fin{}".format(i), fingr[i])
-    cv2.imshow("canvas", canvasf)
+    cv2.imshow("canvas", mask)
+    cv2.imshow("cmb", mask1)
     cv2.waitKey(0)
 
 
