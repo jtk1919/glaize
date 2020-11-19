@@ -36,7 +36,11 @@ FIN_DIR = DATA_DIR + "test\\"
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--image', type=str, default='D:\\data\\results\\csv\\Left fingers 1.csv',
+#parser.add_argument('--image', type=str, default='D:\\data\\results\\csv\\Left fingers 1.csv',
+#parser.add_argument('--image', type=str, default='D:\\data\\results\\csv\\Left fingers A.csv',
+#parser.add_argument('--image', type=str, default='D:\\data\\results\\csv\\Left fingers B.csv',
+#parser.add_argument('--image', type=str, default='D:\\data\\results\\csv\\Left fingers E.csv',
+parser.add_argument('--image', type=str, default='D:\\data\\results\\csv\\Left fingers F.csv',
                         help='name of the image parameters csv file')
 opt = parser.parse_args()
 
@@ -164,19 +168,21 @@ for i in range( len(fingr) ):
             xtop.append(x)
         elif y > (h - 8):
             xbtm.append(x)
+     #
     midx = round((min(xtop) + max(xtop) + min(xbtm) + max(xbtm) ) / 4 )
     new_width = w
-    if (midx + 1) - (w - midx - 1) > 4:
+    if (midx + 1) - (w - midx - 1) > 4:    ## 20
         new_width = 2 * (midx + 1)
     elif (w - midx - 1) - (midx + 1) > 3:
         new_width = 2 * (w - midx - 1)
+    #
     change = (new_width / w  - 1 ) * 100
-    print( "change: ", change )
     if (change > 10):
         midx = round(( min(xbtm) + max(xbtm)) / 2)
-        print( "changing")
-    half_w = max( midx + 1, w - midx - 1)
-    X = max( w, c, 2 * half_w )
+    if 2 * midx > c:
+        midx = int(w/2)
+    half_w = max( midx , w - midx )   # 30
+    X = c
     Y = max( h, r )
     mid_X = int( X/2)
     canvasf = np.zeros( (Y, X), np.uint8)
@@ -185,7 +191,7 @@ for i in range( len(fingr) ):
     if (midx +1) - (w - midx -1) > 8:
         print( "Left Half")
         crop = np.zeros( (h, midx+1), np.uint8);
-        crop[ 0:h, 0:midx+1] = fingr[i][ 0:h, 0:midx+1]
+        crop[ 0:h, 0:midx+1] = fingr[i][ 0:h, 0:midx+1]  # 40
         mirror = cv2.flip( crop, 1)
         canvasf[ Y-h:Y, mid_X-midx-1:mid_X]  = crop
         canvasf[ Y-h:Y, mid_X:mid_X+midx+1] = mirror
@@ -195,13 +201,14 @@ for i in range( len(fingr) ):
         crop = np.zeros((h, w - midx -1), np.uint8);
         crop[0:h, 0:w - midx -1] = fingr[i][0:h, midx:w-1]
         mirror = cv2.flip(crop, 1)
-        canvasf[ Y-h:Y, mid_X - w + midx +1 :mid_X ] = mirror
+        canvasf[ Y-h:Y, mid_X - w + midx +1 :mid_X ] = mirror    #50
         canvasf[ Y-h:Y, mid_X:mid_X+w -midx -1] = crop
         new_width = 2 * (w - midx - 1)
     else:
         print("Straight")
         w2 = round( w/2)
         canvasf[ Y-h:Y, mid_X - w2: mid_X - w2 + w ] = fingr[i]
+    #
     contours, _ = cv2.findContours(canvasf, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     contour = contours[0]
     hull = cv2.convexHull(contour, False)
@@ -217,12 +224,28 @@ for i in range( len(fingr) ):
         mask2 = np.zeros((Y,X), np.uint8)
         mask2[Y-r:Y, 0:X] = mask1
         mask1 = mask2.copy()
+    # composition  -----------------------------------------
+    ref_btm = mask1.copy()
+    fin_top_h = 1
+    if h > r:
+        fin_top_h =  round( h * 0.22)
+    else:
+        fin_top_h = r - h + round( h * 0.22)
+    ref_btm[ 0:fin_top_h, 0:X ] = np.zeros( ( fin_top_h, X ), np.uint8 )
+    comp = (ref_btm + mask).clip(0, 255).astype("uint8")
+    contours, _ = cv2.findContours( comp, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    contour = contours[0]
+    hull = cv2.convexHull(contour, False)
+    comp1 = np.zeros( comp.shape[:2], np.uint8 )
+    comp1 = cv2.drawContours(comp1, [hull], 0, 255, -1, 8)
     #
+    diff = cv2.absdiff( mask, mask1 )
     print(w, new_width, new_width/w )
     cv2.imshow("combi{}".format(i), combi[i])
     cv2.imshow("fin{}".format(i), fingr[i])
-    cv2.imshow("canvas", mask)
-    cv2.imshow("cmb", mask1)
+    cv2.imshow("sm_fin", mask)
+    cv2.imshow("sm_ref", mask1)
+    cv2.imshow("comp", comp1)
     cv2.waitKey(0)
-
+#
 
