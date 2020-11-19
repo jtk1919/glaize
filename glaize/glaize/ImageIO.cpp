@@ -115,6 +115,41 @@ string ImageIO::getTempFile() const
 	return f;
 }
 
+string ImageIO::getComposedSet(std::pair< cv::Mat, cv::Mat> &set) const
+{
+	cv::Mat img, im1, im2;
+	int c, r;
+	double tmp;
+	config cfg;
+
+	string f = cfg.data_dir + GL_SVG_PATH + _working_fn + ".png";
+	img = cv::imread(f);
+	tmp = img.cols * CC_LEN_PX;
+	tmp /= CC_COMPOSITION;
+	c = round(tmp);
+	tmp = img.rows * CC_LEN_PX;
+	tmp /= CC_COMPOSITION;
+	r = round(tmp);
+	cv::resize(img, im1, cv::Size(c, r));
+
+	f = string(GL_DATA_DIR) + GL_SVG_PATH + _working_fn + "_R.png";
+	img = cv::imread(f);
+	tmp = img.cols * CC_LEN_PX;
+	tmp /= CC_COMPOSITION;
+	c = round(tmp);
+	tmp = img.rows * CC_LEN_PX;
+	tmp /= CC_COMPOSITION;
+	r = round(tmp);
+	cv::resize(img, im2, cv::Size(c, r));
+
+	set = make_pair(im1.clone(), im2.clone());
+	im1.release();
+	im2.release();
+	img.release();
+
+	return cfg.data_dir + GL_SVG_PATH;
+}
+
 const string ImageIO::combi_findir[] = { 
 	"Left fingers combi 1", "Left fingers combi 2 and 3",
 	"Left fingers combi 2 and 3", "Left fingers combi 4",

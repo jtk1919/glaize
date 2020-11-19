@@ -80,7 +80,7 @@ Rect fingerLoc[5];
 
 size_t monitorHeight, monitorWidth;
 wstring pydir;
-
+string svgdir = string(GL_DATA_DIR) + GL_SVG_PATH;
 
 
 int main(size_t monitorH, size_t monitorW, wstring pyd)
@@ -179,7 +179,7 @@ int main(size_t monitorH, size_t monitorW, wstring pyd)
             img1.copyTo(canvas(Rect(0, 0, img1.cols, img1.rows)));
 
             cv::putText(canvas, "Mark a short edge of credit card.",
-                Size(img1.cols + 6, 40), font, 0.6, Scalar(0, 255, 0), 1);
+                Size(img1.cols + 6, 40), font, 0.7, Scalar(0, 255, 0), 1);
 
             exit_btn = cv::Rect(canvas.cols - 400, 600, 320, 40);
             canvas(exit_btn) = Vec3b(0, 200, 0);
@@ -208,7 +208,7 @@ int main(size_t monitorH, size_t monitorW, wstring pyd)
 
             state = STRAIGHTENING;
             cv::putText(canvas, "Straignten finger nails and click \"Proceed.\"",
-                Size(canvas.cols - 600, 40), font, 0.6, Scalar(0, 255, 0), 1);
+                Size(canvas.cols - 600, 40), font, 0.7, Scalar(0, 255, 0), 1);
 
             next_hand_btn = cv::Rect(canvas.cols - 400, 500, 320, 40);
             canvas(next_hand_btn) = Vec3b(0, 200, 0);
@@ -237,7 +237,7 @@ int main(size_t monitorH, size_t monitorW, wstring pyd)
                 mcount = -1;
             }
 
-            int xhand = 200 * 5 + 190 + 300;
+            int xhand = 200 * 5 + 260 + 300;
             float tmp = monitorHeight;
             tmp /= 20;
             int sec = (int)tmp;
@@ -270,6 +270,7 @@ int main(size_t monitorH, size_t monitorW, wstring pyd)
 
 void fakeNailMapping()
 {
+    int w, h, x;
     STARTUPINFO si = { sizeof(STARTUPINFO) };
     PROCESS_INFORMATION pi;
 
@@ -281,7 +282,6 @@ void fakeNailMapping()
 
     wstring cmds( cm.begin(), cm.end());
     LPTSTR cmd = _tcsdup(cmds.c_str());
-
     if (!CreateProcess(L"C:\\Windows\\System32\\cmd.exe",
         cmd,
         NULL, NULL,
@@ -290,7 +290,7 @@ void fakeNailMapping()
         pydir.c_str(),
         &si, &pi))
     {
-        printf("CreateProcess failed (%d).\n", GetLastError());
+        printf("CreateProcess failed (%d) for: %s\n", GetLastError(), cm);
         return;
     }
     WaitForSingleObject(pi.hProcess, INFINITE);
@@ -303,6 +303,41 @@ void fakeNailMapping()
     fs.close();
     cout << "Hand classified to combi " << combi + 1;
 
+    string msg = string("Hand classified to pres-on combi size ") + ImageIO::itos(combi + 1);
+    cv::putText(canvas, msg.c_str(),
+        Size(canvas.cols - 600, 80), font, 0.7, Scalar(0, 255, 0), 1);
+
+    cm = string("/C python compose.py --image \"") + csv + "\"";
+    cout << "Running customised composition.";
+    cout << "  " << cm << endl;
+    wstring cmds1(cm.begin(), cm.end());
+    cmd = _tcsdup(cmds1.c_str());
+    if (!CreateProcess(L"C:\\Windows\\System32\\cmd.exe",
+        cmd,
+        NULL, NULL,
+        0, 0,
+        NULL,
+        pydir.c_str(),
+        &si, &pi))
+    {
+        printf("CreateProcess failed (%d) for: %s\n", GetLastError(), cm);
+        return;
+    }
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+
+    std::pair< cv::Mat, cv::Mat> set;
+    svgdir = imgFiles.getComposedSet(set);
+    Rect r1 = Rect( 82, 400 - set.first.rows, set.first.cols, set.first.rows);
+    set.first.copyTo(canvas(r1));
+    r1 = Rect( 82 + set.first.cols + 28, 400 - set.first.rows, set.second.cols, set.second.rows);
+    set.second.copyTo(canvas(r1));
+    set.first.release();
+    set.second.release();
+
+
     cv::Mat fin3d[5], fake[5];
     size_t cc[2];
     int rc;
@@ -311,7 +346,6 @@ void fakeNailMapping()
 
     for (size_t k = 0; k < 5; ++k)
     {
-        int w, h, x;
         size_t ci = (k == 4) ? 1 : 0;
         double cr = CC_LEN_PX;
         cr /= cc[ci];
@@ -351,7 +385,7 @@ void compose()
 
     canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
     cv::putText(canvas, "Composing customized nails . . .",
-        Size(canvas.cols - 600, 40), font, 0.6, Scalar(0, 255, 0), 1);
+        Size(canvas.cols - 600, 40), font, 0.7, Scalar(0, 255, 0), 1);
 
     next_hand_btn = cv::Rect(canvas.cols - 400, 500, 320, 40);
     canvas(next_hand_btn) = Vec3b(0, 200, 0);
@@ -781,9 +815,17 @@ void mouse_callback(int event, int  x, int  y, int  flag, void* param)
             {
                 redo = false;
                 mcount = 0;
+                string msg = string("SVG file printed to ") + svgdir;
+                cv::putText(canvas, msg.c_str(),
+                    Size(canvas.cols - 600, 120), font, 0.7, Scalar(0, 255, 0), 1);
+                cv::Rect rc = cv::Rect(1190, 750, 1000, 120);
+                canvas(rc) = Vec3b(0, 0, 0);
+                cv::putText(canvas, "Press any key to process next hand.",
+                    Size(970, 800), font, 1, Scalar(0, 255, 0), 1);
                 cv::imshow(WIN_DEF, canvas);
+                cv::waitKey(0);
 
-                state = COMPOSING;
+                state = STARTING;
             }
 
         }
@@ -843,7 +885,7 @@ void mouse_callback(int event, int  x, int  y, int  flag, void* param)
                 cv::circle(img1, se2, 3, (0, 255, 255), 2);
                 cv::line(img1, se1, se2, cv::Scalar(0, 255, 0), 1);
                 cv::putText(canvas, "Mark the next short edge.",
-                    Size(img1.cols + 6, 80), font, 0.6, Scalar(0, 255, 0), 1);
+                    Size(img1.cols + 6, 80), font, 0.7, Scalar(0, 255, 0), 1);
                 img1.copyTo(canvas(Rect(0, 0, img1.cols, img1.rows)));
                 cv::imshow(WIN_DEF, canvas);
             }
@@ -860,7 +902,7 @@ void mouse_callback(int event, int  x, int  y, int  flag, void* param)
                 cv::circle(img1, se4, 3, (0, 255, 255), 2);
                 cv::line(img1, se3, se4, cv::Scalar(0, 255, 0), 1);
                 cv::putText(canvas, "Mark a long edge.",
-                    Size(img1.cols + 6, 120), font, 0.6, Scalar(0, 255, 0), 1);
+                    Size(img1.cols + 6, 120), font, 0.7, Scalar(0, 255, 0), 1);
                 img1.copyTo(canvas(Rect(0, 0, img1.cols, img1.rows)));
                 cv::imshow(WIN_DEF, canvas);
             }

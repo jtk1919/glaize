@@ -38,6 +38,7 @@ public:
 	string getTempFile() const;
 	string getNail3dFile( size_t combi, size_t fin) const;
 	string geFakeNailFile(size_t combi, size_t fin) const;
+	string getComposedSet(std::pair< cv::Mat, cv::Mat> &set) const;
 
 	int getFin3d( int combi, cv::Mat fin3d[], cv::Mat fake[], size_t cc[]);
 

@@ -36,13 +36,15 @@ FIN_DIR = DATA_DIR + "test\\"
 
 
 parser = argparse.ArgumentParser()
-#parser.add_argument('--image', type=str, default='D:\\data\\results\\csv\\Left fingers 1.csv',
+parser.add_argument('--image', type=str, default='D:\\data\\results\\csv\\Left fingers 1.csv',
 #parser.add_argument('--image', type=str, default='D:\\data\\results\\csv\\Left fingers A.csv',
 #parser.add_argument('--image', type=str, default='D:\\data\\results\\csv\\Left fingers B.csv',
 #parser.add_argument('--image', type=str, default='D:\\data\\results\\csv\\Left fingers E.csv',
-parser.add_argument('--image', type=str, default='D:\\data\\results\\csv\\Left fingers F.csv',
+#parser.add_argument('--image', type=str, default='D:\\data\\results\\csv\\Left fingers F.csv',
                         help='name of the image parameters csv file')
 opt = parser.parse_args()
+
+FILE_NAME = "tmp"
 
 
 def getCombiMasks( combi ):
@@ -95,6 +97,8 @@ def getCombiMasks( combi ):
 ## "D:\\data\\test\\Left fingers 1.csv",
 ## "D:\\data\\results\\csv\\Left fingers 1.csv",
 def getHandNails( csvf ):
+    global FILE_NAME
+    #
     fin = [ None, None, None, None, None ]
     turn_angles = [ 0, 0, 0, 0, 0]
     cc_len = [ 1, 1]
@@ -103,6 +107,7 @@ def getHandNails( csvf ):
     fdir = FIN_DIR
     fn = csvf.split('\\')[-1]
     fn = fn.split('.csv')[0]
+    FILE_NAME = fn
     i = 0
     for row in creader:
         i += 1
@@ -150,6 +155,9 @@ combi = getCombiMasks(cid)
 #cv2.waitKey(0)
 
 fingr = getHandNails( csvf )
+composition = [ None, None, None, None, None ]
+total_width = 0
+max_height = 0
 ## turned angles and symmetry
 H = 1
 for i in range( len(fingr) ):
@@ -225,27 +233,95 @@ for i in range( len(fingr) ):
         mask2[Y-r:Y, 0:X] = mask1
         mask1 = mask2.copy()
     # composition  -----------------------------------------
-    ref_btm = mask1.copy()
-    fin_top_h = 1
-    if h > r:
-        fin_top_h =  round( h * 0.22)
-    else:
-        fin_top_h = r - h + round( h * 0.22)
-    ref_btm[ 0:fin_top_h, 0:X ] = np.zeros( ( fin_top_h, X ), np.uint8 )
-    comp = (ref_btm + mask).clip(0, 255).astype("uint8")
-    contours, _ = cv2.findContours( comp, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-    contour = contours[0]
-    hull = cv2.convexHull(contour, False)
-    comp1 = np.zeros( comp.shape[:2], np.uint8 )
-    comp1 = cv2.drawContours(comp1, [hull], 0, 255, -1, 8)
+    # ref_btm = mask1.copy()
+    # fin_top_h = 1
+    # if h > r:
+    #     fin_top_h =  round( h * 0.22)
+    # else:
+    #     fin_top_h = r - h + round( h * 0.22)
+    # ref_btm[ 0:fin_top_h, 0:X ] = np.zeros( ( fin_top_h, X ), np.uint8 )
+    # comp = (ref_btm + mask).clip(0, 255).astype("uint8")
+    # contours, _ = cv2.findContours( comp, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    # contour = contours[0]
+    # hull = cv2.convexHull(contour, False)
+    # comp1 = np.zeros( comp.shape[:2], np.uint8 )
+    # comp1 = cv2.drawContours(comp1, [hull], 0, 255, -1, 8)
+    # save --------------------------------------------
+    #comp = ip.clip( comp1 )
+    comp = ip.clip(mask)
+    composition[i] = comp.copy()
+    r, c = comp.shape
+    total_width += c
+    if r > max_height:
+        max_height = r
     #
-    diff = cv2.absdiff( mask, mask1 )
-    print(w, new_width, new_width/w )
-    cv2.imshow("combi{}".format(i), combi[i])
-    cv2.imshow("fin{}".format(i), fingr[i])
-    cv2.imshow("sm_fin", mask)
-    cv2.imshow("sm_ref", mask1)
-    cv2.imshow("comp", comp1)
-    cv2.waitKey(0)
-#
+    #cv2.imshow("fin{}".format(i), fingr[i])
+    #cv2.imshow("sm_fin", mask)
+    #cv2.waitKey(0)
+
+
+# output to svg ------------------------------------------------------------
+import svgwrite
+from svgwrite import mm
+
+SVG_FILE = DATA_DIR + "results\\svg\\" + FILE_NAME + ".svg"
+IMG_FILE = DATA_DIR + "results\\svg\\" + FILE_NAME + ".png"
+IMG_FILE_R = DATA_DIR + "results\\svg\\" + FILE_NAME + "_R.png"
+IMG_HREF = IMG_FILE.replace( "\\", "/")
+IMG_HREF_R = IMG_FILE_R.replace( "\\", "/")
+
+GAP_PX = int(5 * CC_LEN_PX / 85.6)
+R = max_height + 2 * GAP_PX
+C = total_width + 6 * GAP_PX
+canvas = np.zeros( (R,C), np.uint8 )
+start_x = 0
+for i in range(5):
+    start_x += GAP_PX
+    img = composition[i]
+    r, c = img.shape
+    canvas[ R - GAP_PX - r : R - GAP_PX, start_x: start_x + c ] = img
+    start_x += c
+
+#cv2.imshow("comp", canvas)
+#cv2.waitKey(0)
+
+WIDTH_mm = 85.6 * C / CC_LEN_PX
+HEIGHT_mm = 85.6 * R / CC_LEN_PX
+cv2.imwrite( IMG_FILE, canvas )
+dwg = svgwrite.Drawing(filename=SVG_FILE, debug=True)
+imgs = dwg.add( dwg.g(id='imgs'))
+output_img = dwg.image( href=IMG_HREF, insert=(0*mm, 0*mm), size=(WIDTH_mm*mm, HEIGHT_mm*mm) )
+imgs.add(output_img )
+
+canvas_r = cv2.flip( canvas, 1)
+cv2.imwrite( IMG_FILE_R, canvas_r )
+output_img_r = dwg.image( href=IMG_HREF_R, insert=(0*mm, (HEIGHT_mm-1)*mm), size=(WIDTH_mm*mm, HEIGHT_mm*mm) )
+imgs.add(output_img_r )
+dwg.save()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
