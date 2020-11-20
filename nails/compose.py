@@ -220,18 +220,22 @@ for i in range( len(fingr) ):
     contours, _ = cv2.findContours(canvasf, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     contour = contours[0]
     hull = cv2.convexHull(contour, False)
-    mask = np.zeros(canvasf.shape[:2], np.uint8)
-    mask = cv2.drawContours(mask, [hull], 0, 255, -1, 8)
+    thick = 8
+    a, b = canvasf.shape[:2]
+    a += int(thick/2) + 1
+    b = a
+    mask = np.zeros( (a, b), np.uint8)
+    mask = cv2.drawContours(mask, [hull], 0, 255, thick, 8)
     #
-    contours, _ = cv2.findContours(combi[i], cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-    contour = contours[0]
-    hull = cv2.convexHull(contour, False)
-    mask1 = np.zeros(combi[i].shape[:2], np.uint8)
-    mask1 = cv2.drawContours(mask1, [hull], 0, 255, -1, 8)
-    if ( Y > r):
-        mask2 = np.zeros((Y,X), np.uint8)
-        mask2[Y-r:Y, 0:X] = mask1
-        mask1 = mask2.copy()
+    #contours, _ = cv2.findContours(combi[i], cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    #contour = contours[0]
+    #hull = cv2.convexHull(contour, False)
+    #mask1 = np.zeros(combi[i].shape[:2], np.uint8)
+    #mask1 = cv2.drawContours(mask1, [hull], 0, 255, -1, 8)
+    #if ( Y > r):
+    #    mask2 = np.zeros((Y,X), np.uint8)
+    #    mask2[Y-r:Y, 0:X] = mask1
+    #    mask1 = mask2.copy()
     # composition  -----------------------------------------
     # ref_btm = mask1.copy()
     # fin_top_h = 1
@@ -270,6 +274,7 @@ IMG_FILE_R = DATA_DIR + "results\\svg\\" + FILE_NAME + "_R.png"
 IMG_HREF = IMG_FILE.replace( "\\", "/")
 IMG_HREF_R = IMG_FILE_R.replace( "\\", "/")
 
+
 GAP_PX = int(5 * CC_LEN_PX / 85.6)
 R = max_height + 2 * GAP_PX
 C = total_width + 6 * GAP_PX
@@ -287,16 +292,25 @@ for i in range(5):
 
 WIDTH_mm = 85.6 * C / CC_LEN_PX
 HEIGHT_mm = 85.6 * R / CC_LEN_PX
+rc, canvas = cv2.threshold( canvas, 0.5, 255, cv2.THRESH_BINARY_INV)
 cv2.imwrite( IMG_FILE, canvas )
 dwg = svgwrite.Drawing(filename=SVG_FILE, debug=True)
 imgs = dwg.add( dwg.g(id='imgs'))
-output_img = dwg.image( href=IMG_HREF, insert=(0*mm, 0*mm), size=(WIDTH_mm*mm, HEIGHT_mm*mm) )
-imgs.add(output_img )
 
 canvas_r = cv2.flip( canvas, 1)
 cv2.imwrite( IMG_FILE_R, canvas_r )
-output_img_r = dwg.image( href=IMG_HREF_R, insert=(0*mm, (HEIGHT_mm-1)*mm), size=(WIDTH_mm*mm, HEIGHT_mm*mm) )
+href1 = "https://pbs.twimg.com/media/EnRiT5wXcAEqInI?format=png&name=4096x4096"
+output_img_r = dwg.image( href=IMG_HREF_R, insert=(0*mm, (0)*mm), size=(WIDTH_mm*mm, HEIGHT_mm*mm) )
 imgs.add(output_img_r )
+
+href2 = "https://pbs.twimg.com/media/EnRidt9W8AAnepr?format=png&name=4096x4096"
+output_img = dwg.image( href=IMG_HREF, insert=(0*mm, (HEIGHT_mm -1)*mm), size=(WIDTH_mm*mm, HEIGHT_mm*mm) )
+imgs.add(output_img )
+
+
+output_img_r = dwg.image( href=IMG_HREF_R, insert=(0*mm, (2*HEIGHT_mm-2)*mm), size=(WIDTH_mm*mm, HEIGHT_mm*mm) )
+imgs.add(output_img_r )
+
 dwg.save()
 
 
