@@ -205,11 +205,12 @@ int main(size_t monitorH, size_t monitorW, wstring pyd)
         }
         
 
-        if (!redo  && !done )
+        if (!redo  &&  !done )
         {
             cout << "Processing . . ." << endl;
 
             // ----------------------------------------------------------------------------------------
+    
 
             state = TOUCHING_UP;
             canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
@@ -378,7 +379,7 @@ void fakeNailMapping()
         Size(canvas.cols - 600, 80), font, 0.7, Scalar(0, 255, 0), 1);
 
     cm = string("/C python compose.py --image \"") + csv + "\"";
-    cout << "Running customised composition.";
+    cout << "\nRunning customised composition.";
     cout << "  " << cm << endl;
     wstring cmds1(cm.begin(), cm.end());
     cmd = _tcsdup(cmds1.c_str());
@@ -893,10 +894,12 @@ void touch_up_nails()
         Rect roi(x0, y0, x1 - x0, y1 - y0);
         Mat3b crop = nail(roi);
 
-        fingers[i] = crop;
         // save touched up nails to file
         string f = imgFiles.getFingerMask(i);
         cv::imwrite(f, crop);
+        f = imgFiles.getFingerClip(i);
+        cv::imwrite(f, fingers[i]);
+        fingers[i] = crop;
     }
 
 
@@ -981,7 +984,7 @@ void mouse_callback(int event, int  x, int  y, int  flag, void* param)
                 string msg = string("SVG file printed to ") + svgdir;
                 cv::putText(canvas, msg.c_str(),
                     Size(canvas.cols - 600, 120), font, 0.7, Scalar(0, 255, 0), 1);
-                cv::Rect rc = cv::Rect(1190, 750, 1000, 120);
+                cv::Rect rc = cv::Rect(940, 750, 1000, 120);
                 canvas(rc) = Vec3b(0, 0, 0);
                 cv::putText(canvas, "Press any key to process next hand.",
                     Size(970, 800), font, 1, Scalar(0, 255, 0), 1);

@@ -121,6 +121,7 @@ def getHandNails( csvf ):
     scale = CC_LEN_PX / cc_len[0]
     for i in [0, 1, 2, 3 ] :
         f = fdir + fn + '_l{}.png'.format(i)
+        print( "Finger: ", f )
         img = cv2.imread(f)
         img = imutils.rotate_bound(img, turn_angles[i] )
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -146,6 +147,7 @@ def getHandNails( csvf ):
 
 ## "D:\\data\\results\\csv\\Left fingers 1.csv"
 csvf = opt.image
+csvf = csvf.replace( "/", "\\")
 
 cid = int( os.popen('type "D:\\data\\results\\csv\\temp.txt"' ).read() )
 
