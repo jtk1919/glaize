@@ -1,3 +1,22 @@
+
+canvas_r = cv2.flip( canvas, 1)
+cv2.imwrite( IMG_FILE_R, canvas_r )
+href1 = "https://pbs.twimg.com/media/EnRiT5wXcAEqInI?format=png&name=4096x4096"
+output_img_r = dwg.image( href=IMG_HREF_R, insert=(0*mm, (0)*mm), size=(WIDTH_mm*mm, HEIGHT_mm*mm) )
+imgs.add(output_img_r )
+
+href2 = "https://pbs.twimg.com/media/EnRidt9W8AAnepr?format=png&name=4096x4096"
+output_img = dwg.image( href=IMG_HREF, insert=(0*mm, (HEIGHT_mm -1)*mm), size=(WIDTH_mm*mm, HEIGHT_mm*mm) )
+imgs.add(output_img )
+
+
+output_img_r = dwg.image( href=IMG_HREF_R, insert=(0*mm, (2*HEIGHT_mm-2)*mm), size=(WIDTH_mm*mm, HEIGHT_mm*mm) )
+imgs.add(output_img_r )
+
+
+
+
+
 ## backed up from model_rec.py
 for f in flist:
     hm = Hand_Model(f)

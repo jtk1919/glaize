@@ -186,8 +186,10 @@ def main( img, fn, is_left = True ):
             idx = 0
             if cc_i == idx:
                 idx += 1
-            clipped_nail = ip.clip_finger_mask(idx, r, msk)
+            clipped_nail, coord = ip.clip_finger_mask(idx, r, msk)
             _ = cv2.imwrite(TEST_DIR + fn + "_l4.png", clipped_nail)
+            clipped_finger = ip.get_finger_clip( img1, coord)
+            _ = cv2.imwrite(TEST_DIR + fn + "_fin4.png", clipped_finger)
             rtn = True
         elif n_regions == 5:
             _ = cv2.imwrite(TEST_DIR + fn + "_image.png", img)
@@ -201,9 +203,11 @@ def main( img, fn, is_left = True ):
             widths.sort(key=lambda x: x[1])
             for i in [0, 1, 2, 3]:
                 idx = widths[i][0]
-                clipped_nail = ip.clip_finger_mask(idx, r, image)
+                clipped_nail, coord = ip.clip_finger_mask(idx, r, image)
                 clipped_nail = cv2.cvtColor(clipped_nail, cv2.COLOR_GRAY2RGB)
                 _ = cv2.imwrite(TEST_DIR + fn + "_l{}.png".format(i), clipped_nail)
+                clipped_finger = ip.get_finger_clip(img1, coord)
+                _ = cv2.imwrite(TEST_DIR + fn + "_fin{}.png".format(i), clipped_finger)
             rtn = True
         else:
             _ = cv2.imwrite(TEST_DIR + fn + "_image.png", img)

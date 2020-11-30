@@ -3,6 +3,7 @@
 
 #include <Windows.h>
 #include <tchar.h>
+#include <assert.h>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -30,6 +31,7 @@ enum IMAGE_STATE
     REDO_OKAY_FIN,
     MARKING_CC_THUMB,
     REDO_OKAY_THUMB,
+    TOUCHING_UP,
     STRAIGHTENING,
     COMPOSING,
 };
@@ -43,7 +45,7 @@ void mouse_callback(int  event, int  x, int  y, int  flag, void* param);
 static void processImageScaling();
 static size_t distPointToLine(cv::Point l1, cv::Point l2, cv::Point p);
 static float angle2Lines(cv::Point l1p1, cv::Point l1p2, cv::Point l2p1, cv::Point l2p2);
-static cv::Mat get_finger(size_t idx, size_t xpos);
+static cv::Mat get_finger(size_t idx, bool isMask=true, bool withPadding=false);
 static void clear_metrics();
 static void compose();
 
@@ -76,7 +78,9 @@ size_t cc = 0;
 
 Mat fingers[5];
 Mat save[5];
+Mat forTouchUp[5];
 Rect fingerLoc[5];
+vector<Point> nailPoints[5];
 
 size_t monitorHeight, monitorWidth;
 wstring pydir;
@@ -204,9 +208,76 @@ int main(size_t monitorH, size_t monitorW, wstring pyd)
         if (!redo  && !done )
         {
             cout << "Processing . . ." << endl;
-            canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
 
+            // ----------------------------------------------------------------------------------------
+
+            state = TOUCHING_UP;
+            canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
+            cv::putText(canvas, "Touch-up nails maks and click \"Proceed.\"",
+                Size(canvas.cols - 600, 40), font, 0.7, Scalar(0, 255, 0), 1);
+
+            next_hand_btn = cv::Rect(canvas.cols - 400, 500, 320, 40);
+            canvas(next_hand_btn) = Vec3b(0, 200, 0);
+            putText(canvas(next_hand_btn), "Proceed",
+                Point((int)(next_hand_btn.width * 0.3), (int)(next_hand_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
+
+            exit_btn = cv::Rect(canvas.cols - 400, 600, 320, 40);
+            canvas(exit_btn) = Vec3b(0, 200, 0);
+            putText(canvas(exit_btn), "Exit Application",
+                Point((int)(exit_btn.width * 0.17), (int)(exit_btn.height * 0.7)), font, 0.8, Scalar(0, 0, 0), 2);
+
+            putText(canvas, "Scale: 85.6 millimeters",
+                cv::Point(int((monitorWidth - 400 - CC_LEN_PX) / 2), 70), font, 0.73, Scalar(0, 255, 0), 1);
+            size_t x1, x2;
+            x1 = int((monitorWidth - 400 - CC_LEN_PX) / 2);
+            x2 = x1 + CC_LEN_PX;
+            cv::line(canvas, cv::Point(x1, 100), cv::Point(x2, 100), cv::Scalar(0, 255, 0), 2);
+
+            for (size_t k = 0; k < 5; ++k)
+            {
+                cv::Mat3b lf = get_finger(k, true, true);
+                //cv::imshow("finger", lf);  cv::waitKey(0);
+                //cout << "L Finger: " << k << " size ( r, c ) : ( " << lf.rows << ", " << lf.cols << " )" << endl;
+                //fingerLoc[k] = Rect( 260 * k + 300, 800 - lf.rows, lf.cols, lf.rows);
+                //lf.copyTo(canvas(fingerLoc[k]));
+
+                cv::Mat3b lfin = get_finger(k, false);
+                //cv::imshow("finger", lf);  cv::waitKey(0);
+                cout << "L Finger: " << k << " size ( r, c ) : ( " << lfin.rows << ", " << lfin.cols << " )" << endl;
+                fingerLoc[k] = Rect(500 * k + 100, 820 - lfin.rows, lfin.cols, lfin.rows);
+                lfin.copyTo(canvas(fingerLoc[k]));
+
+                mcount = -1;
+            }         
+
+            int xhand = 120  + 600;
+            double tmp = monitorHeight;
+            tmp /= 20;
+            int sec = (int)tmp;
+            int yhand = 11 * sec;
+            int h = 8 * sec;
+            string f = imgFiles.getFingerSeg();
+            Mat img = cv::imread(f);
+            int w = (int)(h * img.cols / img.rows);
+            cv::resize(img, img, Size(w, h));
+            img.copyTo(canvas(Rect(xhand, yhand, w, h)));
+
+            xhand = 120 * 5 + 800;
+            yhand = 11 * sec;
+            f = imgFiles.getThumbSeg();
+            img = cv::imread(f);
+            w = (int)(h * img.cols / img.rows);
+            cv::resize(img, img, Size(w, h));
+            img.copyTo(canvas(Rect(xhand, yhand, w, h)));
+
+            cv::imshow(WIN_DEF, canvas);
+            cv::waitKey(0);
+
+
+            // ---------------------------------------------------------------------------------------
             state = STRAIGHTENING;
+
+            canvas = cv::Mat3b(monitorHeight - 4, monitorWidth - 4, cv::Vec3b(0, 0, 0));
             cv::putText(canvas, "Straignten finger nails and click \"Proceed.\"",
                 Size(canvas.cols - 600, 40), font, 0.7, Scalar(0, 255, 0), 1);
 
@@ -222,14 +293,13 @@ int main(size_t monitorH, size_t monitorW, wstring pyd)
 
             putText(canvas, "Scale: 85.6 millimeters",
                 cv::Point(int(( monitorWidth - 400 - CC_LEN_PX) / 2), 70), font, 0.73, Scalar(0, 255, 0), 1);
-            size_t x1, x2;
             x1 = int((monitorWidth - 400 - CC_LEN_PX) / 2);
             x2 = x1 + CC_LEN_PX;
             cv::line(   canvas, cv::Point( x1 , 100 ) ,  cv::Point( x2, 100 ),  cv::Scalar(0, 255, 0), 2);
 
             for (size_t k = 0; k < 5; ++k)
             {
-                cv::Mat3b lf = get_finger(k, 200 * k + 190 );
+                cv::Mat3b lf = get_finger(k );
                 //cv::imshow("finger", lf);  cv::waitKey(0);
                 cout << "L Finger: " << k << " size ( r, c ) : ( " << lf.rows << ", " << lf.cols << " )" << endl;
                 fingerLoc[k] = Rect(200 * k + 190, 400 - lf.rows, lf.cols, lf.rows);
@@ -237,15 +307,15 @@ int main(size_t monitorH, size_t monitorW, wstring pyd)
                 mcount = -1;
             }
 
-            int xhand = 200 * 5 + 260 + 300;
-            float tmp = monitorHeight;
+            xhand = 200 * 5 + 260 + 300;
+            tmp = monitorHeight;
             tmp /= 20;
-            int sec = (int)tmp;
-            int yhand = 2 * sec;
-            int h = 8 * sec;
-            string f = imgFiles.getFingerSeg();
-            Mat img = cv::imread(f);
-            int w = (int)(h * img.cols / img.rows);
+            sec = (int)tmp;
+            yhand = 2 * sec;
+            h = 8 * sec;
+            f = imgFiles.getFingerSeg();
+            img = cv::imread(f);
+            w = (int)(h * img.cols / img.rows);
             cv::resize(img, img, Size(w, h));
             img.copyTo( canvas( Rect(xhand, yhand, w, h) ) );
 
@@ -258,7 +328,6 @@ int main(size_t monitorH, size_t monitorW, wstring pyd)
 
             cv::imshow(WIN_DEF, canvas);
             cv::waitKey(0);
-
 
             state = COMPOSING;
         }
@@ -297,13 +366,14 @@ void fakeNailMapping()
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
+    
     ifstream fs(tmp);
     int combi;
     fs >> combi;
     fs.close();
     cout << "Hand classified to combi " << combi + 1;
 
-    string msg = string("Hand classified to pres-on combi size ") + ImageIO::itos(combi + 1);
+    string msg = string("Hand classified to press-on combi size ") + ImageIO::itos(combi + 1);
     cv::putText(canvas, msg.c_str(),
         Size(canvas.cols - 600, 80), font, 0.7, Scalar(0, 255, 0), 1);
 
@@ -327,15 +397,14 @@ void fakeNailMapping()
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
-
+    
     std::pair< cv::Mat, cv::Mat> set;
     svgdir = imgFiles.getComposedSet(set);
-    Rect r1 = Rect( 82, 400 - set.first.rows, set.first.cols, set.first.rows);
-    set.first.copyTo(canvas(r1));
-    r1 = Rect( 82 + set.first.cols + 28, 400 - set.first.rows, set.second.cols, set.second.rows);
-    set.second.copyTo(canvas(r1));
+    Mat img;
+    cv::resize(set.first, img, cv::Size( 3 * set.first.cols, 3 * set.first.rows));
+    Rect r1 = Rect( 900, 500 - img.rows, img.cols, img.rows);
+    img.copyTo(canvas(r1));
     set.first.release();
-    set.second.release();
 
 
     cv::Mat fin3d[5], fake[5];
@@ -352,7 +421,7 @@ void fakeNailMapping()
 
         cv::Mat lf1 = fingers[k];
         x = 340 * k + 300 - round(lf1.cols / 2);
-        fingerLoc[k] = Rect( x, 700 - lf1.rows, lf1.cols, lf1.rows);
+        fingerLoc[k] = Rect( x, 800 - lf1.rows, lf1.cols, lf1.rows);
         lf1.copyTo(canvas(fingerLoc[k]));
 
         cv::Mat lf = fin3d[k];
@@ -362,7 +431,7 @@ void fakeNailMapping()
 
         cout << "L Finger: " << k << " size ( r, c ) : ( " << lf.rows << ", " << lf.cols << " )" << endl;
         x = 340 * k + 300 - round(lf.cols / 2);
-        fingerLoc[k] = Rect( x, 1000 - lf.rows, lf.cols, lf.rows);
+        fingerLoc[k] = Rect( x, 1100 - lf.rows, lf.cols, lf.rows);
         lf.copyTo(canvas(fingerLoc[k]));
 
         cv::Mat lf2 = fake[k];
@@ -370,10 +439,11 @@ void fakeNailMapping()
         h = (int)(lf2.rows * cr);
         cv::resize(lf2, lf2, cv::Size(w, h));
         x = 340 * k + 300 - round(lf2.cols / 2);
-        fingerLoc[k] = Rect( x, 1300 - lf2.rows, lf2.cols, lf2.rows);
+        fingerLoc[k] = Rect( x, 1400 - lf2.rows, lf2.cols, lf2.rows);
         lf2.copyTo(canvas(fingerLoc[k]));
 
     }
+    
     
 }
 
@@ -566,12 +636,12 @@ double pxtomm(size_t px)
 }
 
 
-cv::Mat get_finger(size_t idx, size_t xpos)
+cv::Mat get_finger(size_t idx, bool isMask, bool withPadding)
 {
     size_t w, h, cross_h, cross_v, hmid, x, y, x1=0, x2=0, left, right, step;
     float cr = 1.0;
 
-    string f = imgFiles.getFingerMask(idx);
+    string f = isMask ? imgFiles.getFingerMask(idx) : imgFiles.getFingerClip(idx);
     
     switch (idx)
     {
@@ -584,10 +654,30 @@ cv::Mat get_finger(size_t idx, size_t xpos)
                 break;
     }
     cv::Mat img = cv::imread(f);
+    if (isMask and withPadding)
+    {
+        cv::Mat padded = cv::Mat3b( img.rows + BORDER_PIXELS + BORDER_TOP, 
+                                    img.cols + 2 * BORDER_PIXELS, 
+                                    cv::Vec3b(0, 0, 0));
+        cv::Rect rc(BORDER_PIXELS, BORDER_TOP, img.cols, img.rows);
+        img.copyTo(padded(rc));
+        img.release();
+        img = padded.clone();
+        forTouchUp[idx] = img;
+        padded.release();
+        return img;
+    }
+
+    if (!isMask)
+    {
+        fingers[idx] = img.clone();
+        return img;
+    }
+   
     cr = conversion_rate[fingerFileIndex(idx)];
     w = (int)(img.cols * cr);
     h = (int)(img.rows * cr);
-    cv::resize(img, img, cv::Size( w, h));
+    cv::resize(img, img, cv::Size(w, h));
     
     fingers[idx] = img;
     save[idx] = img.clone();
@@ -752,6 +842,67 @@ void genNailMetrics()
 }
 
 
+void touch_up_nails()
+{
+    vector<Vec4i> hierarchy;
+    int x0, y0, x1, y1;
+    const int thresh = 100;
+
+    for (size_t i = 0; i < 5; ++i)
+    {
+        vector<vector<Point> > contours, hulls;
+        cv::Mat gray, canny_output;
+
+        if (nailPoints[i].empty())
+        {
+            continue;
+        }
+
+        vector<Point> pts, hull;
+
+        gray = forTouchUp[i];
+        cvtColor(gray, gray, COLOR_BGR2GRAY);
+        //Canny(gray, canny_output, thresh, thresh * 2);
+        //imshow("canny", canny_output); imshow("gray", gray);
+        findContours(gray, contours, hierarchy, RETR_LIST, CHAIN_APPROX_SIMPLE);
+        assert(contours.size() == 1);
+        pts = contours[0];
+        pts.insert(pts.end(), nailPoints[i].begin(), nailPoints[i].end());
+        convexHull(pts, hull);
+        hulls.push_back(hull);
+
+        Mat nail = Mat::zeros(gray.size(), CV_8UC3);
+        drawContours(nail, hulls, 0, cv::Scalar(255, 255, 255), -1 );
+        drawContours(fingers[i], hulls, 0, cv::Scalar(0, 0, 0), -1);
+
+        Mat lfin = fingers[i];
+        Rect rc = Rect(500 * i + 100, 820 - lfin.rows, lfin.cols, lfin.rows);
+        lfin.copyTo(canvas(rc));
+        cv::imshow(WIN_DEF, canvas);
+
+        x0 = y0 = 99999;
+        x1 = y1 = 0;
+        for (size_t j = 0; j < hull.size(); ++j)
+        {
+            Point p = hull[j];
+            if (p.x < x0) { x0 = p.x; }
+            if (p.y < y0) { y0 = p.y; }
+            if (p.x > x1) { x1 = p.x; }
+            if (p.y > y1) { y1 = p.y; }
+        }
+        Rect roi(x0, y0, x1 - x0, y1 - y0);
+        Mat3b crop = nail(roi);
+
+        fingers[i] = crop;
+        // save touched up nails to file
+        string f = imgFiles.getFingerMask(i);
+        cv::imwrite(f, crop);
+    }
+
+
+}
+
+
 void mouse_callback(int event, int  x, int  y, int  flag, void* param)
 {
     if (event == EVENT_LBUTTONDOWN)
@@ -790,13 +941,25 @@ void mouse_callback(int event, int  x, int  y, int  flag, void* param)
                     Size(300, 400), font, 1, Scalar(0, 255, 0), 1);
                 cv::imshow(WIN_DEF, canvas);
 
-                state = (state == REDO_OKAY_FIN) ? MARKING_CC_THUMB : STRAIGHTENING;
+                state = (state == REDO_OKAY_FIN) ? MARKING_CC_THUMB : TOUCHING_UP;
             }
 
         }
         else if (next_hand_btn.contains(Point(x, y)))
         {
-            if (state == STRAIGHTENING  )
+            if (state == TOUCHING_UP)
+            {
+                redo = false;
+                mcount = 0;
+                touch_up_nails();
+                cv::Rect rc = cv::Rect(1190, 150, 1000, 120);
+                canvas(rc) = Vec3b(0, 0, 0);
+                cv::putText(canvas, "Press any key to continue.",
+                    Size(1200, 200), font, 1, Scalar(0, 255, 0), 1);
+                cv::imshow(WIN_DEF, canvas);
+                state = STRAIGHTENING;
+            }
+            else if (state == STRAIGHTENING  )
             {
                 redo = false;
                 mcount = 0;
@@ -831,7 +994,25 @@ void mouse_callback(int event, int  x, int  y, int  flag, void* param)
         }
         else if (mcount < 0)
         {
-            if (state == STRAIGHTENING)
+            if (state == TOUCHING_UP)
+            {
+                for (size_t i = 0; i < 5; ++i)
+                {
+                    Rect rc = fingerLoc[i];
+                    if ( rc.contains(Point(x, y)))
+                    {
+                        nailPoints[i].push_back(Point(x - rc.x, y - rc.y));
+                        Vec3b &color = canvas.at<Vec3b>(y, x);
+                        color[0] = 0;
+                        color[1] = 0;
+                        color[2] = 0;
+                        cv::imshow(WIN_DEF, canvas);
+                        mcount = -1;
+                        break;
+                    }
+                }
+            }
+            else if (state == STRAIGHTENING)
             {
                 if (fingerLoc[0].contains(Point(x, y)))
                 {

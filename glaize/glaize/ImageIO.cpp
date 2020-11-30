@@ -84,6 +84,14 @@ string ImageIO::getFingerMask(uint8_t fid) const
 	return f;
 }
 
+
+string ImageIO::getFingerClip(uint8_t fid) const
+{
+	string f = cfg.working_dir + _working_fn + "_fin" + ImageIO::itos(fid) + ".png";
+	return f;
+}
+
+
 string ImageIO::getWriteMask(uint8_t fid) const
 {
 	string f = cfg.results_masks_dir + _working_fn + "_l" + ImageIO::itos(fid) + ".png";

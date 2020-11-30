@@ -23,6 +23,9 @@
 
 #define GL_NUM_FINGERS			5
 
+#define BORDER_PIXELS			40
+#define BORDER_TOP				(BORDER_PIXELS + 20)
+
 
 
 using namespace std;

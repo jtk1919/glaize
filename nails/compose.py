@@ -149,7 +149,7 @@ csvf = opt.image
 
 cid = int( os.popen('type "D:\\data\\results\\csv\\temp.txt"' ).read() )
 
-combi = getCombiMasks(cid)
+#combi = getCombiMasks(cid)
 #for i in range( len(combi) ):
 #    cv2.imshow( "fin{}".format(i), combi[i])
 #cv2.waitKey(0)
@@ -158,15 +158,12 @@ fingr = getHandNails( csvf )
 composition = [ None, None, None, None, None ]
 total_width = 0
 max_height = 0
-## turned angles and symmetry
+THICKNESS = 8
 H = 1
 for i in range( len(fingr) ):
-    fin = fingr[i]
-    cmb = combi[i]
-    contours, _ = cv2.findContours(fin, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    contours, _ = cv2.findContours( fingr[i], cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     contr = contours[0]
     h, w = fingr[i].shape
-    r, c = combi[i].shape
     H = h
     xtop = []
     xbtm = []
@@ -179,53 +176,52 @@ for i in range( len(fingr) ):
      #
     midx = round((min(xtop) + max(xtop) + min(xbtm) + max(xbtm) ) / 4 )
     new_width = w
-    if (midx + 1) - (w - midx - 1) > 4:    ## 20
+    if (midx + 1) - (w - midx - 1) > 4:
         new_width = 2 * (midx + 1)
     elif (w - midx - 1) - (midx + 1) > 3:
         new_width = 2 * (w - midx - 1)
-    #
+    #20
     change = (new_width / w  - 1 ) * 100
     if (change > 10):
         midx = round(( min(xbtm) + max(xbtm)) / 2)
-    if 2 * midx > c:
-        midx = int(w/2)
-    half_w = max( midx , w - midx )   # 30
-    X = c
-    Y = max( h, r )
+    if 2 * midx > ( 1.12 * w ):
+        midx = int(1.12 * w/2)
+    X = 2 * max( midx, w - midx )
+    Y = h
     mid_X = int( X/2)
-    canvasf = np.zeros( (Y, X), np.uint8)
-    canvasc = canvasf.copy()
-    new_width = w
+    half_t = int( THICKNESS / 2 )
+    canvasf = np.zeros((Y + THICKNESS, X + THICKNESS), np.uint8)
     if (midx +1) - (w - midx -1) > 8:
         print( "Left Half")
         crop = np.zeros( (h, midx+1), np.uint8);
         crop[ 0:h, 0:midx+1] = fingr[i][ 0:h, 0:midx+1]  # 40
         mirror = cv2.flip( crop, 1)
-        canvasf[ Y-h:Y, mid_X-midx-1:mid_X]  = crop
-        canvasf[ Y-h:Y, mid_X:mid_X+midx+1] = mirror
-        new_width = 2 * (midx + 1)
+        canvasf[ half_t: Y + half_t, half_t + mid_X-midx-1: half_t + mid_X]  = crop
+        canvasf[ half_t: Y + half_t, half_t + mid_X: mid_X + midx + 1 + half_t] = mirror
     elif (w - midx -1) - (midx + 1) > 8:
         print("Right Half")
         crop = np.zeros((h, w - midx -1), np.uint8);
         crop[0:h, 0:w - midx -1] = fingr[i][0:h, midx:w-1]
         mirror = cv2.flip(crop, 1)
-        canvasf[ Y-h:Y, mid_X - w + midx +1 :mid_X ] = mirror    #50
-        canvasf[ Y-h:Y, mid_X:mid_X+w -midx -1] = crop
+        canvasf[ half_t: Y + half_t, half_t + mid_X - w + midx + 1 : half_t + mid_X ] = mirror    #50
+        canvasf[ half_t: Y + half_t, half_t + mid_X : half_t + mid_X + w - midx -1 ] = crop
         new_width = 2 * (w - midx - 1)
     else:
         print("Straight")
-        w2 = round( w/2)
-        canvasf[ Y-h:Y, mid_X - w2: mid_X - w2 + w ] = fingr[i]
+        canvasf = np.zeros((h + THICKNESS, w + THICKNESS), np.uint8)
+        canvasf[ half_t: h + half_t, half_t : w + half_t ] = fingr[i]
     #
     contours, _ = cv2.findContours(canvasf, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     contour = contours[0]
     hull = cv2.convexHull(contour, False)
-    thick = 8
     a, b = canvasf.shape[:2]
-    a += int(thick/2) + 1
-    b = a
     mask = np.zeros( (a, b), np.uint8)
-    mask = cv2.drawContours(mask, [hull], 0, 255, thick, 8)
+    mask = cv2.drawContours(mask, [hull], 0, 255, -1, 8)
+    # compensate for the region the outline eats into
+    a1 = a + THICKNESS
+    b1 = b + THICKNESS
+    print( a, b, a1, b1)
+    mask = cv2.resize( mask, (b1, a1), interpolation=cv2.INTER_AREA)
     #
     #contours, _ = cv2.findContours(combi[i], cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     #contour = contours[0]
@@ -252,13 +248,13 @@ for i in range( len(fingr) ):
     # comp1 = cv2.drawContours(comp1, [hull], 0, 255, -1, 8)
     # save --------------------------------------------
     #comp = ip.clip( comp1 )
-    comp = ip.clip(mask)
-    composition[i] = comp.copy()
-    r, c = comp.shape
+    #comp = ip.clip(mask)
+    #composition[i] = comp.copy()
+    r, c = mask.shape
     total_width += c
     if r > max_height:
         max_height = r
-    #
+    composition[i] = mask.copy()
     #cv2.imshow("fin{}".format(i), fingr[i])
     #cv2.imshow("sm_fin", mask)
     #cv2.waitKey(0)
@@ -266,7 +262,6 @@ for i in range( len(fingr) ):
 
 # output to svg ------------------------------------------------------------
 import svgwrite
-from svgwrite import mm
 
 SVG_FILE = DATA_DIR + "results\\svg\\" + FILE_NAME + ".svg"
 IMG_FILE = DATA_DIR + "results\\svg\\" + FILE_NAME + ".png"
@@ -287,30 +282,41 @@ for i in range(5):
     canvas[ R - GAP_PX - r : R - GAP_PX, start_x: start_x + c ] = img
     start_x += c
 
+contours, _ = cv2.findContours(canvas, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+canvas_r = cv2.flip( canvas, 1)
+#cv2.imshow("canvas", canvas_r); cv2.waitKey(0)
+
+frame = np.zeros( ( 3 * R,C), np.uint8 )
+frame[ 0: R, 0: C ] = canvas_r
+frame[ R: 2*R, 0: C ] = canvas
+frame[ 2*R: 3*R, 0: C ] = canvas_r
+#cv2.imshow("frame", frame); cv2.waitKey(0)
+
 #cv2.imshow("comp", canvas)
 #cv2.waitKey(0)
-
+R, C = frame.shape[:2]
+PX_PER_MM = 3.7795275591
 WIDTH_mm = 85.6 * C / CC_LEN_PX
 HEIGHT_mm = 85.6 * R / CC_LEN_PX
-rc, canvas = cv2.threshold( canvas, 0.5, 255, cv2.THRESH_BINARY_INV)
-cv2.imwrite( IMG_FILE, canvas )
-dwg = svgwrite.Drawing(filename=SVG_FILE, debug=True)
-imgs = dwg.add( dwg.g(id='imgs'))
+WIDTH_PX = round( WIDTH_mm * PX_PER_MM )
+HEIGHT_PX = round( HEIGHT_mm * PX_PER_MM )
 
-canvas_r = cv2.flip( canvas, 1)
+mask = cv2.resize( frame, ( WIDTH_PX, HEIGHT_PX), interpolation=cv2.INTER_AREA)
+#cv2.imshow("frame", mask); cv2.waitKey(0)
+cv2.imwrite( IMG_FILE, mask )
 cv2.imwrite( IMG_FILE_R, canvas_r )
-href1 = "https://pbs.twimg.com/media/EnRiT5wXcAEqInI?format=png&name=4096x4096"
-output_img_r = dwg.image( href=IMG_HREF_R, insert=(0*mm, (0)*mm), size=(WIDTH_mm*mm, HEIGHT_mm*mm) )
-imgs.add(output_img_r )
+contours, _ = cv2.findContours( mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
 
-href2 = "https://pbs.twimg.com/media/EnRidt9W8AAnepr?format=png&name=4096x4096"
-output_img = dwg.image( href=IMG_HREF, insert=(0*mm, (HEIGHT_mm -1)*mm), size=(WIDTH_mm*mm, HEIGHT_mm*mm) )
-imgs.add(output_img )
-
-
-output_img_r = dwg.image( href=IMG_HREF_R, insert=(0*mm, (2*HEIGHT_mm-2)*mm), size=(WIDTH_mm*mm, HEIGHT_mm*mm) )
-imgs.add(output_img_r )
-
+dwg = svgwrite.Drawing( filename=SVG_FILE, size= ( "{}px".format(WIDTH_PX), "{}px".format(HEIGHT_PX) ) )
+shapes = dwg.add(dwg.g(id='shapes', fill='none', stroke='black', stroke_width=1,
+                       stroke_linejoin="round", stroke_linecap="round"))
+for cnt in contours:
+    hull = cv2.convexHull( cnt, False)
+    nail = svgwrite.shapes.Polygon(points=[])
+    for p in hull:
+        x, y = p[0]
+        nail.points.append( ( int(x), int(y)) )
+    shapes.add( nail )
 dwg.save()
 
 

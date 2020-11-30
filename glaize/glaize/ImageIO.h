@@ -29,6 +29,7 @@ public:
 	}
 
 	string getFingerMask(uint8_t fid) const;
+	string getFingerClip(uint8_t fid) const;
 	string getWriteMask(uint8_t fid) const;
 
 	string getFingerSeg() const;

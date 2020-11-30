@@ -3,6 +3,9 @@ import numpy as np
 from math import atan2, cos, sin, sqrt, pi
 import imutils
 
+BORDER_PIXELS = 40
+BORDER_TOP = BORDER_PIXELS + 20
+
 
 def upright( msk, is_left = True):
     orientation = 0
@@ -11,18 +14,18 @@ def upright( msk, is_left = True):
     x_pos = [0] * 4
     is_vertical = True
     region_count = 0
-    in_nail = False
+    is_in_nail=False
     for i in range(len(hsum)):
-        if (not in_nail) and (hsum[i] > 0):
+        if (not is_in_nail) and (hsum[i] > 0):
             x1 = i
-            in_nail = True
+            is_in_nail = True
             region_count += 1
-        elif in_nail and (hsum[i] == 0):
+        elif is_in_nail and (hsum[i] == 0):
             if ( i - x1 ) > 20:
                 x_pos[region_count - 1] = int( ( x1 + i) / 2 )
             else:
                 region_count -= 1
-            in_nail = False
+            is_in_nail = False
         #
     if region_count < 4:
         is_vertical = False
@@ -30,15 +33,15 @@ def upright( msk, is_left = True):
         msk1 = cv2.rotate(msk1, cv2.ROTATE_90_CLOCKWISE)
         hsum = np.sum(msk1, axis=0)
         region_count = 0
-        in_nail = False
+        is_in_nail = False
         for i in range(len(hsum)):
-            if (not in_nail) and (hsum[i] > 0):
+            if (not is_in_nail) and (hsum[i] > 0):
                 x1 = i
-                in_nail = True
+                is_in_nail = True
                 region_count += 1
-            elif in_nail and (hsum[i] == 0):
+            elif is_in_nail and (hsum[i] == 0):
                 x_pos[region_count - 1] = int((x1 + i) / 2)
-                in_nail = False
+                is_in_nail = False
         #now vertical
     y_pos = [0] * 4
     for i in [0, 1, 2, 3]:
@@ -77,12 +80,33 @@ def smooth( img ):
     mask = cv2.drawContours(mask, [hull], 0, 255, -1, 8)
     return mask
 
+
 def clip_finger_mask( idx, r, img, doWideClip = True ):
     msk1 = np.zeros(img.shape[:2], dtype="uint8")
     msk1[r['masks'][:, :, idx]] = 255
     msk1 = smooth(msk1)
-    nail_clipped = clip(msk1)
-    return nail_clipped
+    nail_clipped, coord = clip_coord(msk1)
+    return nail_clipped, coord
+
+
+def get_finger_clip( img, coord):
+    print( "clipping finger" )
+    y1, y2, x1, x2 = coord
+    r, c = img.shape[:2]
+    y1 -= BORDER_TOP
+    if y1 < 0:
+        y1 = 0
+    x1 -= BORDER_PIXELS
+    if x1 < 0 :
+        x1 = 0
+    y2 += BORDER_PIXELS
+    if y2 >= r:
+        y2 = r - 1
+    x2 += BORDER_PIXELS
+    if x2 >= c:
+        x2 = c -1
+    img_crop = img[ y1:y2, x1:x2 ]
+    return img_crop
 
 
 def pad( mask, shaped_pad=False):
@@ -102,7 +126,7 @@ def pad( mask, shaped_pad=False):
     return crp
 
 
-def clip( msk1, doWideClip = False ):
+def clip_coord( msk1, doWideClip = False ):
     hsum = np.sum(msk1, axis=0)
     vsum = np.sum(msk1, axis=1)
     x1=0; y1=0; x2=0; y2=0
@@ -144,8 +168,12 @@ def clip( msk1, doWideClip = False ):
     crp = cropped_nail.copy()
     if doWideClip:
         crp = pad( crp )
-    return crp
+    return crp, [ y1, y2, x1, x2 ]
 
+
+def clip( msk, doWideClip = False ):
+    crp, coord = clip_coord( msk, doWideClip )
+    return crp
 
 
 def drawAxis(img, p_, q_, colour, scale):
