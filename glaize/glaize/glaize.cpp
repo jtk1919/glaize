@@ -10,6 +10,7 @@
 #include <opencv2/highgui.hpp>
 #include "framework.h"
 #include "glaize.h"
+#include "config.h"
 
 #include "main.h"
 
@@ -406,7 +407,18 @@ int runRCNN( HWND hWnd)
     FreeConsole();
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-    printLog( hWnd, L"Completed. Free to proceed.");
+    printLog( hWnd, L"Completed RCNN run.");
+
+    config cfg;
+    wstring csvf(cfg.input_csv_file.begin(), cfg.input_csv_file.end());
+    wstring msg1 = L"Correctly processed hand image files are logged in:\n  " + csvf;
+    printLog(hWnd, msg1);
+
+    size_t i1 = csvf.find(L"rec");
+    csvf.replace(i1, 3, L"err");
+    msg1 = L"Hand image files the RCNN did not process correctly are logged in:\n  " + csvf;
+    printLog(hWnd, msg1);
+
     ::SetForegroundWindow(hWnd);
     
 }

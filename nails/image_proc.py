@@ -90,7 +90,7 @@ def clip_finger_mask( idx, r, img, doWideClip = True ):
 
 
 def get_finger_clip( img, coord):
-    print( "clipping finger" )
+    #print( "clipping finger" )
     y1, y2, x1, x2 = coord
     r, c = img.shape[:2]
     y1 -= BORDER_TOP
