@@ -497,7 +497,6 @@ void compose()
     fakeNailMapping();
 
     cv::imshow(WIN_DEF, canvas);
-    cv::waitKey(0);
 }
 
 size_t fingerFileIndex(size_t finger_id)
